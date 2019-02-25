@@ -37,11 +37,6 @@ impl Signature {
     /// In theory, should only return true if the PublicKey matches the SecretKey used to
     /// instantiate the Signature.
     pub fn verify(&self, msg: &[u8], d: u64, pk: &PublicKey) -> bool {
-        // Check points are valid
-        if self.point.is_infinity() || pk.point.is_infinity() {
-            return false;
-        }
-
         let mut msg_hash_point = hash_on_g2(msg, d);
         msg_hash_point.affine();
         let mut lhs = ate_pairing(self.point.as_raw(), &GeneratorG1);
@@ -61,11 +56,6 @@ impl Signature {
         msg_hash_imaginary: &[u8],
         pk: &PublicKey,
     ) -> bool {
-        // Check points are valid
-        if self.point.is_infinity() || pk.point.is_infinity() {
-            return false;
-        }
-
         let mut msg_hash_point = map_to_g2(msg_hash_real, msg_hash_imaginary);
         msg_hash_point.affine();
         let mut lhs = ate_pairing(self.point.as_raw(), &GeneratorG1);
