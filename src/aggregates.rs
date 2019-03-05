@@ -43,6 +43,12 @@ impl AggregatePublicKey {
         self.point.affine();
     }
 
+    /// Add a AggregatePublicKey to the AggregatePublicKey.
+    pub fn add_aggregate(&mut self, aggregate_public_key: &AggregatePublicKey) {
+        self.point.add(&aggregate_public_key.point);
+        self.point.affine();
+    }
+
     /// Instantiate an AggregatePublicKey from compressed bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<AggregatePublicKey, DecodeError> {
         let point = G1Point::from_bytes(bytes)?;
@@ -83,6 +89,12 @@ impl AggregateSignature {
     /// Add a Signature to the AggregateSignature.
     pub fn add(&mut self, signature: &Signature) {
         self.point.add(&signature.point);
+        self.point.affine();
+    }
+
+    /// Add a AggregateSignature to the AggregateSignature.
+    pub fn add_aggregate(&mut self, aggregate_signature: &AggregateSignature) {
+        self.point.add(&aggregate_signature.point);
         self.point.affine();
     }
 
@@ -634,5 +646,84 @@ mod tests {
         let output = hex::decode(output).unwrap(); // Bytes
 
         assert_eq!(aggregate_pk.as_bytes(), output);
+    }
+
+    #[test]
+    pub fn add_aggregate_public_key() {
+        let keypair_1 = Keypair::random();
+        let keypair_2 = Keypair::random();
+        let keypair_3 = Keypair::random();
+        let keypair_4 = Keypair::random();
+
+        let aggregate_public_key12 = AggregatePublicKey::from_public_keys(&[
+            &keypair_1.pk,
+            &keypair_2.pk,
+        ]);
+
+        let aggregate_public_key34 = AggregatePublicKey::from_public_keys(&[
+            &keypair_3.pk,
+            &keypair_4.pk,
+        ]);
+
+        // Should be the same as adding two aggregates
+        let aggregate_public_key1234 = AggregatePublicKey::from_public_keys(&[
+            &keypair_1.pk,
+            &keypair_2.pk,
+            &keypair_3.pk,
+            &keypair_4.pk,
+        ]);
+
+        // Aggregate AggregatePublicKeys
+        let mut add_aggregate_public_key = AggregatePublicKey::new();
+        add_aggregate_public_key.add_aggregate(&aggregate_public_key12);
+        add_aggregate_public_key.add_aggregate(&aggregate_public_key34);
+
+        assert_eq!(add_aggregate_public_key, aggregate_public_key1234);
+    }
+
+    #[test]
+    pub fn add_aggregate_signature() {
+        let domain = 45 as u64;
+        let msg: Vec<u8> = vec![1; 32];
+
+        let keypair_1 = Keypair::random();
+        let keypair_2 = Keypair::random();
+        let keypair_3 = Keypair::random();
+        let keypair_4 = Keypair::random();
+
+        let sig_1 = Signature::new(&msg, domain, &keypair_1.sk);
+        let sig_2 = Signature::new(&msg, domain, &keypair_2.sk);
+        let sig_3 = Signature::new(&msg, domain, &keypair_3.sk);
+        let sig_4 = Signature::new(&msg, domain, &keypair_4.sk);
+
+        // Should be the same as adding two aggregates
+        let aggregate_public_key = AggregatePublicKey::from_public_keys(&[
+            &keypair_1.pk,
+            &keypair_2.pk,
+            &keypair_3.pk,
+            &keypair_4.pk,
+        ]);
+
+        let mut aggregate_signature = AggregateSignature::new();
+        aggregate_signature.add(&sig_1);
+        aggregate_signature.add(&sig_2);
+        aggregate_signature.add(&sig_3);
+        aggregate_signature.add(&sig_4);
+
+        let mut add_aggregate_signature = AggregateSignature::new();
+        add_aggregate_signature.add(&sig_1);
+        add_aggregate_signature.add(&sig_2);
+
+        let mut aggregate_signature34 = AggregateSignature::new();
+        aggregate_signature34.add(&sig_3);
+        aggregate_signature34.add(&sig_4);
+
+        add_aggregate_signature.add_aggregate(&aggregate_signature34);
+
+        add_aggregate_signature.point.affine();
+        aggregate_signature.point.affine();
+
+        assert_eq!(add_aggregate_signature, aggregate_signature);
+        assert!(add_aggregate_signature.verify(&msg, domain, &aggregate_public_key));
     }
 }
