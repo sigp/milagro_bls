@@ -2,7 +2,7 @@ extern crate bls_aggregates;
 extern crate criterion;
 extern crate hex;
 
-use bls_aggregates::{AggregatePublicKey, AggregateSignature, Keypair, Signature};
+use bls_aggregates::*;
 use criterion::{black_box, criterion_group, criterion_main, Benchmark, Criterion};
 
 fn compression(c: &mut Criterion) {
@@ -176,12 +176,37 @@ fn aggregate_verfication_multiple_messages(c: &mut Criterion) {
     );
 }
 
+fn key_generation(c: &mut Criterion) {
+    c.bench(
+        "key generation",
+        Benchmark::new("Generate random keypair", move |b| {
+            b.iter(|| {
+                black_box(Keypair::random());
+            })
+        }),
+    );
+
+    c.bench(
+        "key generation",
+        Benchmark::new("Generate keypair from known string", move |b| {
+            b.iter(|| {
+                let secret = vec![42; 48];
+                let sk = SecretKey::from_bytes(&secret).unwrap();
+                let pk = PublicKey::from_secret_key(&sk);
+                let keypair = Keypair { sk, pk };
+                black_box(keypair);
+            })
+        }),
+    );
+}
+
 criterion_group!(
     benches,
     compression,
     signing,
     aggregation,
     aggregate_verfication,
-    aggregate_verfication_multiple_messages
+    aggregate_verfication_multiple_messages,
+    key_generation
 );
 criterion_main!(benches);
