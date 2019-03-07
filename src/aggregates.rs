@@ -134,10 +134,7 @@ impl AggregateSignature {
             key_point.affine();
             let mut hash_point = hash_on_g2(&msg[i * 32..(i + 1) * 32], d);
             hash_point.affine();
-            let pair = ate_pairing(
-                &hash_point,
-                key_point.as_raw(),
-            );
+            let pair = ate_pairing(&hash_point, key_point.as_raw());
             if i == 0 {
                 lhs = pair;
             } else {
@@ -173,9 +170,9 @@ mod tests {
     extern crate hex;
     extern crate yaml_rust;
 
+    use self::yaml_rust::yaml;
     use super::super::keys::{Keypair, SecretKey};
     use super::*;
-    use self::yaml_rust::yaml;
     use std::{fs::File, io::prelude::*, path::PathBuf};
 
     #[test]
@@ -336,7 +333,8 @@ mod tests {
             /*
              * A subset of signed keys should fail verification.
              */
-            let mut subset_pub_keys: Vec<&PublicKey> = signing_kps_subset.iter().map(|kp| &kp.pk).collect();
+            let mut subset_pub_keys: Vec<&PublicKey> =
+                signing_kps_subset.iter().map(|kp| &kp.pk).collect();
             let subset_agg_key = AggregatePublicKey::from_public_keys(&subset_pub_keys.as_slice());
             assert!(!agg_signature.verify(&message, domain, &subset_agg_key));
             // Sanity check the subset test by completing the set and verifying it.
@@ -347,8 +345,10 @@ mod tests {
             /*
              * A set of keys which did not sign the message at all should fail
              */
-            let mut non_signing_pub_keys: Vec<&PublicKey> = non_signing_kps.iter().map(|kp| &kp.pk).collect();
-            let non_signing_agg_key = AggregatePublicKey::from_public_keys(&non_signing_pub_keys.as_slice());
+            let mut non_signing_pub_keys: Vec<&PublicKey> =
+                non_signing_kps.iter().map(|kp| &kp.pk).collect();
+            let non_signing_agg_key =
+                AggregatePublicKey::from_public_keys(&non_signing_pub_keys.as_slice());
             assert!(!agg_signature.verify(&message, domain, &non_signing_agg_key));
 
             /*
@@ -524,8 +524,7 @@ mod tests {
         aggregate_signature.add(&Signature::new(&msg_1, domain, &keypair_3.sk));
 
         // Too few public keys
-        let apk_1 =
-            AggregatePublicKey::from_public_keys(&[&keypair_1.pk, &keypair_2.pk]);
+        let apk_1 = AggregatePublicKey::from_public_keys(&[&keypair_1.pk, &keypair_2.pk]);
         assert!(!aggregate_signature.verify_multiple(&msg_1, domain, &[&apk_1]));
 
         // Too many public keys
@@ -543,11 +542,7 @@ mod tests {
         assert!(!aggregate_signature.verify_multiple(&msg_2, domain, &[&apk_1]));
 
         // Too many AgregatePublicKeys
-        assert!(!aggregate_signature.verify_multiple(
-            &msg_1,
-            domain,
-            &[&apk_1, &apk_1]
-        ));
+        assert!(!aggregate_signature.verify_multiple(&msg_1, domain, &[&apk_1, &apk_1]));
 
         // Incorrect domain
         assert!(!aggregate_signature.verify_multiple(&msg_1, 46, &[&apk_1]));
@@ -605,7 +600,10 @@ mod tests {
             }
 
             // Verfiry aggregate signature matches output
-            let output = test_case["output"].as_str().unwrap().trim_left_matches("0x"); // String
+            let output = test_case["output"]
+                .as_str()
+                .unwrap()
+                .trim_left_matches("0x"); // String
             let output = hex::decode(output).unwrap(); // Bytes
 
             assert_eq!(aggregate_sig.as_bytes(), output);
@@ -642,7 +640,10 @@ mod tests {
         }
 
         // Verfiry AggregatePublicKey matches output
-        let output = test_case["output"].as_str().unwrap().trim_left_matches("0x"); // String
+        let output = test_case["output"]
+            .as_str()
+            .unwrap()
+            .trim_left_matches("0x"); // String
         let output = hex::decode(output).unwrap(); // Bytes
 
         assert_eq!(aggregate_pk.as_bytes(), output);

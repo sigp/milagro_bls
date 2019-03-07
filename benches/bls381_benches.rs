@@ -132,10 +132,7 @@ fn aggregate_verfication_multiple_messages(c: &mut Criterion) {
     let mut pubkeys = vec![];
     let mut agg_sig = AggregateSignature::new();
 
-    let mut msgs = vec![
-        vec![0; 32],
-        vec![1; 32],
-    ];
+    let mut msgs = vec![vec![0; 32], vec![1; 32]];
 
     let domain = 0;
 

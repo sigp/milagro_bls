@@ -40,9 +40,7 @@ impl G2Point {
     /// Instatiate the point from compressed bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, DecodeError> {
         let pt = decompress_g2(&bytes)?;
-        Ok(Self {
-            point: pt,
-        })
+        Ok(Self { point: pt })
     }
 
     /// Export (serialize) the point to compressed bytes.
