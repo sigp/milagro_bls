@@ -122,10 +122,7 @@ impl AggregateSignature {
             key_point.affine();
             let mut hash_point = hash_on_g2(&msg[i * 32..(i + 1) * 32], d);
             hash_point.affine();
-            let pair = ate_pairing(
-                &hash_point,
-                key_point.as_raw(),
-            );
+            let pair = ate_pairing(&hash_point, key_point.as_raw());
             if i == 0 {
                 lhs = pair;
             } else {
@@ -161,9 +158,9 @@ mod tests {
     extern crate hex;
     extern crate yaml_rust;
 
+    use self::yaml_rust::yaml;
     use super::super::keys::{Keypair, SecretKey};
     use super::*;
-    use self::yaml_rust::yaml;
     use std::{fs::File, io::prelude::*, path::PathBuf};
 
     #[test]
@@ -593,7 +590,10 @@ mod tests {
             }
 
             // Verfiry aggregate signature matches output
-            let output = test_case["output"].as_str().unwrap().trim_left_matches("0x"); // String
+            let output = test_case["output"]
+                .as_str()
+                .unwrap()
+                .trim_left_matches("0x"); // String
             let output = hex::decode(output).unwrap(); // Bytes
 
             assert_eq!(aggregate_sig.as_bytes(), output);
@@ -630,7 +630,10 @@ mod tests {
         }
 
         // Verfiry AggregatePublicKey matches output
-        let output = test_case["output"].as_str().unwrap().trim_left_matches("0x"); // String
+        let output = test_case["output"]
+            .as_str()
+            .unwrap()
+            .trim_left_matches("0x"); // String
         let output = hex::decode(output).unwrap(); // Bytes
 
         assert_eq!(aggregate_pk.as_bytes(), output);
