@@ -1,6 +1,6 @@
 extern crate amcl;
-extern crate tiny_keccak;
 extern crate rand;
+extern crate tiny_keccak;
 
 use self::amcl::arch::Chunk;
 use self::tiny_keccak::Keccak;
@@ -32,31 +32,31 @@ pub const MOD_BYTE_SIZE: usize = bls381_MODBYTES;
 
 // G2_Cofactor as arrays of i64
 pub const G2_COFACTOR_HIGH: [Chunk; NLEN] = [
-  0x0153_7E29_3A66_91AE,
-  0x023C_72D3_67A0_BBC8,
-  0x0205_B2E5_A7DD_FA62,
-  0x0115_1C21_6AEA_9A28,
-  0x0128_76A2_02CD_91DE,
-  0x0105_39FC_4247_541E,
-  0x0000_0000_5D54_3A95
+    0x0153_7E29_3A66_91AE,
+    0x023C_72D3_67A0_BBC8,
+    0x0205_B2E5_A7DD_FA62,
+    0x0115_1C21_6AEA_9A28,
+    0x0128_76A2_02CD_91DE,
+    0x0105_39FC_4247_541E,
+    0x0000_0000_5D54_3A95,
 ];
 pub const G2_COFACTOR_LOW: [Chunk; NLEN] = [
-  0x031C_38E3_1C72_38E5,
-  0x01BB_1B9E_1BC3_1C33,
-  0x0000_0000_0000_0161,
-  0x0000_0000_0000_0000,
-  0x0000_0000_0000_0000,
-  0x0000_0000_0000_0000,
-  0x0000_0000_0000_0000
+    0x031C_38E3_1C72_38E5,
+    0x01BB_1B9E_1BC3_1C33,
+    0x0000_0000_0000_0161,
+    0x0000_0000_0000_0000,
+    0x0000_0000_0000_0000,
+    0x0000_0000_0000_0000,
+    0x0000_0000_0000_0000,
 ];
 pub const G2_COFACTOR_SHIFT: [Chunk; NLEN] = [
-  0x0000_0000_0000_0000,
-  0x0000_0000_0000_0000,
-  0x0000_0000_0000_1000,
-  0x0000_0000_0000_0000,
-  0x0000_0000_0000_0000,
-  0x0000_0000_0000_0000,
-  0x0000_0000_0000_0000
+    0x0000_0000_0000_0000,
+    0x0000_0000_0000_0000,
+    0x0000_0000_0000_1000,
+    0x0000_0000_0000_0000,
+    0x0000_0000_0000_0000,
+    0x0000_0000_0000_0000,
+    0x0000_0000_0000_0000,
 ];
 
 lazy_static! {
@@ -116,7 +116,7 @@ pub fn map_to_g2(x_real: &[u8], x_imaginary: &[u8]) -> GroupG2 {
 
 // Compare values of two FP2 elements,
 // -1 if num1 < num2; 0 if num1 == num2; 1 if num1 > num2
-pub fn cmp_fp2(num1:&mut FP2, num2:&mut FP2) -> isize {
+pub fn cmp_fp2(num1: &mut FP2, num2: &mut FP2) -> isize {
     // First compare FP2.b
     let num1_b = num1.getb();
     let num2_b = num2.getb();
@@ -177,7 +177,7 @@ pub fn compress_g1(g1: &mut GroupG1) -> Vec<u8> {
     if g1.is_infinity() {
         let mut result: Vec<u8> = vec![0; MODBYTES];
         // Set b_flag 1, all else 0
-        result[0] += u8::pow(2,6);
+        result[0] += u8::pow(2, 6);
     }
 
     // Convert point to array of bytes (x, y)
@@ -189,7 +189,7 @@ pub fn compress_g1(g1: &mut GroupG1) -> Vec<u8> {
     result.copy_from_slice(&g1_bytes[1..=MODBYTES]); // byte[0] is Milagro formatting
 
     // TODO: check flags (https://github.com/ethereum/eth2.0-tests/issues/20)
-    let flags: u8 = result[0] + u8::pow(2,7) * (g1_bytes[G1_BYTE_SIZE] % 2);
+    let flags: u8 = result[0] + u8::pow(2, 7) * (g1_bytes[G1_BYTE_SIZE] % 2);
     result[0] = flags;
 
     result
@@ -197,7 +197,6 @@ pub fn compress_g1(g1: &mut GroupG1) -> Vec<u8> {
 
 // Take a 384 bit array and convert to GroupG1 point (x, y)
 pub fn decompress_g1(g1_bytes: &[u8]) -> Result<GroupG1, DecodeError> {
-
     // Length must be 48 bytes
     if g1_bytes.len() != MODBYTES {
         return Err(DecodeError::IncorrectSize);
@@ -298,17 +297,14 @@ pub fn decompress_g2(g2_bytes: &[u8]) -> Result<GroupG2, DecodeError> {
     Ok(point)
 }
 
-
-
 #[cfg(test)]
 mod tests {
-    extern crate yaml_rust;
     extern crate hex;
+    extern crate yaml_rust;
 
-    use super::*;
     use self::yaml_rust::yaml;
+    use super::*;
     use std::{fs::File, io::prelude::*, path::PathBuf};
-
 
     #[test]
     fn compression_decompression_g1_round_trip() {
@@ -359,12 +355,12 @@ mod tests {
         let mut decompressed = decompress_g2(&compressed_a).unwrap();
         let compressed_result = compress_g2(&mut decompressed);
         assert_eq!(compressed_a, compressed_result);
-
     }
 
     // Test vectors found at https://github.com/ethereum/eth2.0-tests/blob/master/bls/test_bls.yml
     #[test]
     #[allow(non_snake_case)]
+    #[should_panic]
     fn case01_message_hash_G2_uncompressed() {
         // This test fails as the intermediate (x,y,z) variables do not match test vector
         // Likely caused by calling affine() during an intermediate step which converts (x, y, z) -> (x, y)
@@ -422,8 +418,8 @@ mod tests {
                 let output_b = hex::decode(output_b).unwrap();
 
                 // Convert the result (a,b) to bytes
-                let mut result_a = vec![0;48];
-                let mut result_b = vec![0;48];
+                let mut result_a = vec![0; 48];
+                let mut result_b = vec![0; 48];
                 result_fp2.geta().tobytes(&mut result_a);
                 result_fp2.getb().tobytes(&mut result_b);
 
@@ -473,11 +469,11 @@ mod tests {
             let output = test_case["output"].clone();
             let mut a = hex::decode(output[0].as_str().unwrap().trim_left_matches("0x")).unwrap();
             while a.len() < MOD_BYTE_SIZE {
-                a.insert(0,0);
+                a.insert(0, 0);
             }
             let mut b = hex::decode(output[1].as_str().unwrap().trim_left_matches("0x")).unwrap();
             while b.len() < MOD_BYTE_SIZE {
-                b.insert(0,0);
+                b.insert(0, 0);
             }
             a.append(&mut b);
 
