@@ -656,15 +656,11 @@ mod tests {
         let keypair_3 = Keypair::random();
         let keypair_4 = Keypair::random();
 
-        let aggregate_public_key12 = AggregatePublicKey::from_public_keys(&[
-            &keypair_1.pk,
-            &keypair_2.pk,
-        ]);
+        let aggregate_public_key12 =
+            AggregatePublicKey::from_public_keys(&[&keypair_1.pk, &keypair_2.pk]);
 
-        let aggregate_public_key34 = AggregatePublicKey::from_public_keys(&[
-            &keypair_3.pk,
-            &keypair_4.pk,
-        ]);
+        let aggregate_public_key34 =
+            AggregatePublicKey::from_public_keys(&[&keypair_3.pk, &keypair_4.pk]);
 
         // Should be the same as adding two aggregates
         let aggregate_public_key1234 = AggregatePublicKey::from_public_keys(&[
