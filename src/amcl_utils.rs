@@ -1,4 +1,5 @@
 extern crate amcl;
+extern crate hex;
 extern crate rand;
 extern crate tiny_keccak;
 
@@ -29,6 +30,8 @@ pub const G1_BYTE_SIZE: usize = (2 * MODBYTES) as usize;
 pub const G2_BYTE_SIZE: usize = (4 * MODBYTES) as usize;
 // Byte size of secret key
 pub const MOD_BYTE_SIZE: usize = bls381_MODBYTES;
+
+pub const Q_STRING: &str = "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab";
 
 // G2_Cofactor as arrays of i64
 pub const G2_COFACTOR_HIGH: [Chunk; NLEN] = [
@@ -176,8 +179,8 @@ pub fn compress_g1(g1: &mut GroupG1) -> Vec<u8> {
     // Check point at inifinity
     if g1.is_infinity() {
         let mut result: Vec<u8> = vec![0; MODBYTES];
-        // Set b_flag 1, all else 0
-        result[0] += u8::pow(2, 6);
+        // Set b_flag and c_flag to 1, all else to 0
+        result[0] += u8::pow(2, 6) + u8::pow(2, 7);
     }
 
     // Convert point to array of bytes (x, y)
@@ -188,9 +191,10 @@ pub fn compress_g1(g1: &mut GroupG1) -> Vec<u8> {
     let mut result: Vec<u8> = vec![0; MODBYTES];
     result.copy_from_slice(&g1_bytes[1..=MODBYTES]); // byte[0] is Milagro formatting
 
-    // TODO: check flags (https://github.com/ethereum/eth2.0-tests/issues/20)
-    let flags: u8 = result[0] + u8::pow(2, 7) * (g1_bytes[G1_BYTE_SIZE] % 2);
-    result[0] = flags;
+    // Set flags
+    let a_flag = calc_a_flag(&mut BigNum::frombytes(&g1_bytes[MODBYTES + 1..]));
+    result[0] = result[0] + u8::pow(2, 5) * a_flag; // set a_flag
+    result[0] = result[0] + u8::pow(2, 7); // c_flag
 
     result
 }
@@ -202,24 +206,47 @@ pub fn decompress_g1(g1_bytes: &[u8]) -> Result<GroupG1, DecodeError> {
         return Err(DecodeError::IncorrectSize);
     }
 
+    let a_flag: u8 = g1_bytes[0] % u8::pow(2, 6) / u8::pow(2, 5);
+
+    // c_flag must be set
+    if g1_bytes[0] / u8::pow(2, 7) != 1 {
+        // Invalid bytes
+        return Err(DecodeError::BadPoint);
+    }
+
     // Check b_flag
     if g1_bytes[0] % u8::pow(2, 7) / u8::pow(2, 6) == 1 {
+        // If b_flag == 1 -> a_flag == x == 0
+        if a_flag != 0 || g1_bytes[0] % u8::pow(2, 5) != 0 {
+            return Err(DecodeError::BadPoint);
+        }
+
+        for i in 1..g1_bytes.len() {
+            if g1_bytes[i] != 0 {
+                return Err(DecodeError::BadPoint);
+            }
+        }
+
         // Point is infinity
-        return Err(DecodeError::Infinity);
+        return Ok(GroupG1::new());
     }
 
     let mut g1_bytes = g1_bytes.to_owned();
-    // TODO: Rearrange flags if required (https://github.com/ethereum/eth2.0-tests/issues/20)
-    let a_flag: u8 = g1_bytes[0] / u8::pow(2, 7);
 
     // Zero remaining flags so it can be converted to 381 bit BigNum
     g1_bytes[0] %= u8::pow(2, 5);
     let x_big = BigNum::frombytes(&g1_bytes);
 
-    // Convert to GroupG1 point using big and sign
-    let point = GroupG1::new_bigint(&x_big, a_flag as isize);
+    // Convert to GroupG1 point using big
+    let mut point = GroupG1::new_big(&x_big);
     if point.is_infinity() {
         return Err(DecodeError::BadPoint);
+    }
+
+    // Confirm a_flag
+    let calculated_a_flag = calc_a_flag(&mut point.gety().clone());
+    if calculated_a_flag != a_flag {
+        point.neg();
     }
 
     Ok(point)
@@ -231,14 +258,14 @@ pub fn compress_g2(g2: &mut GroupG2) -> Vec<u8> {
     // (c_flag1, b_flag1, a_flag1, x-coordinate.a, 0, 0, 0, x-coordinate.b) where:
     // c_flag1 == 1
     // b_flag1 represents infinity (1 if infinitity -> x = y = 0)
-    // a_flag1 = y % 2 (i.e. odd or eveness of y point)
+    // a_flag1 = y_imaginary % 2 (i.e. point.gety().getb())
     // x is the x-coordinate of
 
     // Check point at inifinity
     if g2.is_infinity() {
         let mut result: Vec<u8> = vec![0; G2_BYTE_SIZE / 2];
-        // Set b_flag 1, all else 0
-        result[0] += u8::pow(2, 6);
+        // Set b_flag and c_flag to 1, all else to 0
+        result[0] += u8::pow(2, 6) + u8::pow(2, 7);
         return result;
     }
 
@@ -247,13 +274,17 @@ pub fn compress_g2(g2: &mut GroupG2) -> Vec<u8> {
     g2.tobytes(&mut g2_bytes);
 
     // Convert arrary (x, y) to compressed format
-    let mut result: Vec<u8> = vec![0; G2_BYTE_SIZE / 2];
-    result.copy_from_slice(&g2_bytes[0..(G2_BYTE_SIZE / 2)]);
+    // Note: amcl is x(re, im), y(re, im) eth is x(im, re), y(im, re)
+    let x_real = &g2_bytes[0..MODBYTES];
+    let x_imaginary = &g2_bytes[MODBYTES..(MODBYTES * 2)];
+    let mut result: Vec<u8> = vec![0; MODBYTES];
+    result.copy_from_slice(x_imaginary);
+    result.extend_from_slice(x_real);
 
-    // TODO check flags (https://github.com/ethereum/eth2.0-tests/issues/20)
-    // Add a_flag1 at 2^767 bit if g2.y.a is odd
-    let flags: u8 = result[0] + u8::pow(2, 7) * (g2_bytes[MODBYTES * 3 - 1] % 2);
-    result[0] = flags;
+    // Set flags
+    let a_flag = calc_a_flag(&mut BigNum::frombytes(&g2_bytes[MODBYTES * 3..]));
+    result[0] = result[0] + u8::pow(2, 5) * a_flag;
+    result[0] += u8::pow(2, 7); // c_flag
 
     result
 }
@@ -265,23 +296,39 @@ pub fn decompress_g2(g2_bytes: &[u8]) -> Result<GroupG2, DecodeError> {
         return Err(DecodeError::IncorrectSize);
     }
 
+    // c_flag must be set
+    if g2_bytes[0] / u8::pow(2, 7) != 1 {
+        // Invalid bytes
+        return Err(DecodeError::BadPoint);
+    }
+
     // Check b_flag
     if g2_bytes[0] % u8::pow(2, 7) / u8::pow(2, 6) == 1 {
+        // If b_flag == 1 -> a_flag == x == 0
+        if g2_bytes[0] % u8::pow(2, 6) != 0 {
+            return Err(DecodeError::BadPoint);
+        }
+
+        for i in 1..g2_bytes.len() {
+            if g2_bytes[i] != 0 {
+                return Err(DecodeError::BadPoint);
+            }
+        }
         // Point is infinity
         return Ok(GroupG2::new());
     }
 
+    let a_flag: u8 = g2_bytes[0] % u8::pow(2, 6) / u8::pow(2, 5);
+
     let mut g2_bytes = g2_bytes.to_owned();
-    // TODO: Rearrange flags if required (https://github.com/ethereum/eth2.0-tests/issues/20)
-    let a_flag: u8 = g2_bytes[0] / u8::pow(2, 7); // Note: Modulus not needed for this flag
 
     // Zero remaining flags so it can be converted to 381 bit BigNum
     g2_bytes[0] %= u8::pow(2, 5);
 
     // Convert from array to FP2
-    let a = BigNum::frombytes(&g2_bytes[0..MODBYTES]);
-    let b = BigNum::frombytes(&g2_bytes[MODBYTES..]);
-    let x = FP2::new_bigs(&a, &b);
+    let x_imaginary = BigNum::frombytes(&g2_bytes[0..MODBYTES]);
+    let x_real = BigNum::frombytes(&g2_bytes[MODBYTES..]);
+    let x = FP2::new_bigs(&x_real, &x_imaginary);
 
     // Convert to GroupG1 point using big and sign
     let mut point = GroupG2::new_fp2(&x);
@@ -289,17 +336,46 @@ pub fn decompress_g2(g2_bytes: &[u8]) -> Result<GroupG2, DecodeError> {
         return Err(DecodeError::BadPoint);
     }
 
-    // Check odd/eveness of y against a_flag
-    if point.gety().geta().parity() as u8 != a_flag {
+    // Confirm a_flag matches given flag
+    let calculated_a_flag = calc_a_flag(&mut point.gety().getb().clone());
+    if calculated_a_flag != a_flag {
         point.neg();
     }
 
     Ok(point)
 }
 
+// Takes either y or y_im and calculates if a_flag is 1 or 0
+//
+// a_flag = floor((y * 2)  / q)
+pub fn calc_a_flag(y: &mut BigNum) -> u8 {
+    let mut y_bytes = vec![0; MODBYTES];
+    let mut results = vec![0; MODBYTES];
+    y.tobytes(&mut y_bytes);
+    let q = hex::decode(Q_STRING).unwrap();
+
+    // Multiply y by two with carrying
+    let mut carry: u64 = 0;
+    for (i, y_byte) in y_bytes.iter().enumerate() {
+        let res: u64 = *y_byte as u64 * 2 + carry;
+        carry = res - res % u64::pow(2, 8);
+        results[i] = (res % u64::pow(2, 8)) as u8;
+    }
+
+    // If y * 2 > q -> (y * 2) / q == 1
+    for (i, res) in results.iter().enumerate() {
+        if *res > q[i] {
+            return 1;
+        } else if *res < q[i] {
+            return 0;
+        }
+    }
+
+    return 1; // Should not be reached as q is prime -> 2 * y != q
+}
+
 #[cfg(test)]
 mod tests {
-    extern crate hex;
     extern crate yaml_rust;
 
     use self::yaml_rust::yaml;
@@ -309,19 +385,19 @@ mod tests {
     #[test]
     fn compression_decompression_g1_round_trip() {
         // Input 1
-        let compressed = hex::decode("153d21a4cfd562c469cc81514d4ce5a6b577d8403d32a394dc265dd190b47fa9f829fdd7963afdf972e5e77854051f6f").unwrap();
+        let compressed = hex::decode("b53d21a4cfd562c469cc81514d4ce5a6b577d8403d32a394dc265dd190b47fa9f829fdd7963afdf972e5e77854051f6f").unwrap();
         let mut decompressed = decompress_g1(&compressed).unwrap();
         let compressed_result = compress_g1(&mut decompressed);
         assert_eq!(compressed, compressed_result);
 
         // Input 2
-        let compressed = hex::decode("1301803f8b5ac4a1133581fc676dfedc60d891dd5fa99028805e5ea5b08d3491af75d0707adab3b70c6a6a580217bf81").unwrap();
+        let compressed = hex::decode("b301803f8b5ac4a1133581fc676dfedc60d891dd5fa99028805e5ea5b08d3491af75d0707adab3b70c6a6a580217bf81").unwrap();
         let mut decompressed = decompress_g1(&compressed).unwrap();
         let compressed_result = compress_g1(&mut decompressed);
         assert_eq!(compressed, compressed_result);
 
         // Input 3
-        let compressed = hex::decode("0491d1b0ecd9bb917989f0e74f0dea0422eac4a873e5e2644f368dffb9a6e20fd6e10c1b77654d067c0618f6e5a7f79a").unwrap();
+        let compressed = hex::decode("a491d1b0ecd9bb917989f0e74f0dea0422eac4a873e5e2644f368dffb9a6e20fd6e10c1b77654d067c0618f6e5a7f79a").unwrap();
         let mut decompressed = decompress_g1(&compressed).unwrap();
         let compressed_result = compress_g1(&mut decompressed);
         assert_eq!(compressed, compressed_result);
@@ -330,8 +406,8 @@ mod tests {
     #[test]
     fn compression_decompression_g2_round_trip() {
         // Input 1
-        let mut compressed_a = hex::decode("0def2d4be359640e6dae6438119cbdc4f18e5e4496c68a979473a72b72d3badf98464412e9d8f8d2ea9b31953bb24899").unwrap();
-        let mut compressed_b = hex::decode("0666d31d7e6561371644eb9ca7dbcb87257d8fd84a09e38a7a491ce0bbac64a324aa26385aebc99f47432970399a2ecb").unwrap();
+        let mut compressed_a = hex::decode("a666d31d7e6561371644eb9ca7dbcb87257d8fd84a09e38a7a491ce0bbac64a324aa26385aebc99f47432970399a2ecb").unwrap();
+        let mut compressed_b = hex::decode("0def2d4be359640e6dae6438119cbdc4f18e5e4496c68a979473a72b72d3badf98464412e9d8f8d2ea9b31953bb24899").unwrap();
         compressed_a.append(&mut compressed_b);
 
         let mut decompressed = decompress_g2(&compressed_a).unwrap();
@@ -339,8 +415,8 @@ mod tests {
         assert_eq!(compressed_a, compressed_result);
 
         // Input 2
-        let mut compressed_a = hex::decode("996ebb76ef93b5c1b9b4adfa60d8526cbf64a3d681dc1aa4d0579c1961f28f0ec14622d6f5688e6d29a4873778b4f0fe").unwrap();
-        let mut compressed_b = hex::decode("084eb2c1131b7a11d1d629578b3d9847a7e5ced53265541bcbc283c41be442dee008381769de75be424f50abcadc4ec6").unwrap();
+        let mut compressed_a = hex::decode("a63e88274adb7a98d112c16f7057f388786496c8f57e03ee9052b46b15eb0166645008f8cc929eb4475e386f3e6f1df8").unwrap();
+        let mut compressed_b = hex::decode("1181e97fac61e371a22f34a4622f7e343ca0d99846b175a92ad1bf1df6fd4d0800e4edb7c2eb3d8437ed10cbc2d88823").unwrap();
         compressed_a.append(&mut compressed_b);
 
         let mut decompressed = decompress_g2(&compressed_a).unwrap();
@@ -348,8 +424,8 @@ mod tests {
         assert_eq!(compressed_a, compressed_result);
 
         // Input 3
-        let mut compressed_a = hex::decode("828e556fee1ff0ee37363297db11471e74991156a558d9ce038d1abb5ce07878e52168efd253725247f7db99da592dbe").unwrap();
-        let mut compressed_b = hex::decode("17635a29dd13a560dfeded38d5acd84a7a233c09eb95fa6d428cbcde961844aceeb60a213df04d0e23cd2ddff2a41a1a").unwrap();
+        let mut compressed_a = hex::decode("b090fbc9d5c6c80fec73c567202a75664cd00c2592e472a4d81d2ed4b6a166311e809ca25eb88c5d0189cbf1baa8ea79").unwrap();
+        let mut compressed_b = hex::decode("18ca20f0b66678c0230e65eb4ebb3d621940984f71eb5481453e4489dafcc7f6ee2c863b76671467002a8f2392063005").unwrap();
         compressed_a.append(&mut compressed_b);
 
         let mut decompressed = decompress_g2(&compressed_a).unwrap();
