@@ -208,11 +208,12 @@ mod tests {
             agg_sig.add(&sig);
             agg_pub_key.add(&keypair.pk);
         }
+
         let agg_sig_bytes = agg_sig.as_bytes();
         let agg_pub_bytes = agg_pub_key.as_bytes();
 
-        let agg_sig = AggregateSignature::from_bytes(&agg_sig_bytes).unwrap();
-        let agg_pub_key = AggregatePublicKey::from_bytes(&agg_pub_bytes).unwrap();
+        let mut agg_sig = AggregateSignature::from_bytes(&agg_sig_bytes).unwrap();
+        let mut agg_pub_key = AggregatePublicKey::from_bytes(&agg_pub_bytes).unwrap();
 
         assert!(agg_sig.verify(&message, domain, &agg_pub_key));
     }
@@ -629,7 +630,7 @@ mod tests {
 
         // Convert input to rust formats
         let mut aggregate_pk = AggregatePublicKey::new();
-        let inputs = test_case["input"].clone();
+        let inputs = test_case[0]["input"].clone();
 
         // Add each input PublicKey to AggregatePublicKey
         for input in inputs {
@@ -640,7 +641,7 @@ mod tests {
         }
 
         // Verfiry AggregatePublicKey matches output
-        let output = test_case["output"]
+        let output = test_case[0]["output"]
             .as_str()
             .unwrap()
             .trim_left_matches("0x"); // String
