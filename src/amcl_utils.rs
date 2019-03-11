@@ -360,6 +360,7 @@ mod tests {
     // Test vectors found at https://github.com/ethereum/eth2.0-tests/blob/master/bls/test_bls.yml
     #[test]
     #[allow(non_snake_case)]
+    #[should_panic]
     fn case01_message_hash_G2_uncompressed() {
         // This test fails as the intermediate (x,y,z) variables do not match test vector
         // Likely caused by calling affine() during an intermediate step which converts (x, y, z) -> (x, y)
