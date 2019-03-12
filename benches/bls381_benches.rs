@@ -1,11 +1,18 @@
+extern crate amcl;
 extern crate bls_aggregates;
 extern crate criterion;
 extern crate hex;
 
+use self::amcl::bls381 as BLSCurve;
+use BLSCurve::big::BIG;
+use BLSCurve::ecp::ECP;
 use bls_aggregates::*;
 use criterion::{black_box, criterion_group, criterion_main, Benchmark, Criterion};
 
-fn compression(c: &mut Criterion) {
+pub type BigNum = BIG;
+pub type GroupG1 = ECP;
+
+fn compression_signature(c: &mut Criterion) {
     let compressed_g2 = hex::decode("a666d31d7e6561371644eb9ca7dbcb87257d8fd84a09e38a7a491ce0bbac64a324aa26385aebc99f47432970399a2ecb0def2d4be359640e6dae6438119cbdc4f18e5e4496c68a979473a72b72d3badf98464412e9d8f8d2ea9b31953bb24899").unwrap();
     let mut signature = Signature::from_bytes(&compressed_g2).unwrap();
 
@@ -24,6 +31,64 @@ fn compression(c: &mut Criterion) {
         Benchmark::new("Compress a Signature", move |b| {
             b.iter(|| {
                 black_box(Signature::as_bytes(&mut signature));
+            })
+        })
+        .sample_size(10),
+    );
+}
+
+fn compression_public_key(c: &mut Criterion) {
+    let compressed_g1 = hex::decode("a491d1b0ecd9bb917989f0e74f0dea0422eac4a873e5e2644f368dffb9a6e20fd6e10c1b77654d067c0618f6e5a7f79a").unwrap();
+    let mut public_key = PublicKey::from_bytes(&compressed_g1).unwrap();
+
+    c.bench(
+        "compression",
+        Benchmark::new("Decompress a PublicKey", move |b| {
+            b.iter(|| {
+                black_box(PublicKey::from_bytes(&compressed_g1).unwrap());
+            })
+        })
+        .sample_size(100),
+    );
+
+    c.bench(
+        "compression",
+        Benchmark::new("Compress a PublicKey", move |b| {
+            b.iter(|| {
+                black_box(PublicKey::as_bytes(&mut public_key));
+            })
+        })
+        .sample_size(10),
+    );
+}
+
+fn compression_public_key_bigs(c: &mut Criterion) {
+    let compressed_g1 = hex::decode("a491d1b0ecd9bb917989f0e74f0dea0422eac4a873e5e2644f368dffb9a6e20fd6e10c1b77654d067c0618f6e5a7f79a").unwrap();
+    let public_key = PublicKey::from_bytes(&compressed_g1).unwrap();
+    let mut x_bytes = [0 as u8; 48];
+    public_key.point.as_raw().clone().getx().tobytes(&mut x_bytes);
+    let mut y_bytes = [0 as u8; 48];
+    public_key.point.as_raw().clone().gety().tobytes(&mut y_bytes);
+
+    c.bench(
+        "compression",
+        Benchmark::new("Decompress a PublicKey from Bigs", move |b| {
+            b.iter(|| {
+                let x_big = BigNum::frombytes(&x_bytes);
+                let y_big = BigNum::frombytes(&y_bytes);
+                black_box(PublicKey::new_from_raw(&GroupG1::new_bigs(&x_big, &y_big)));
+            })
+        })
+        .sample_size(100),
+    );
+
+    c.bench(
+        "compression",
+        Benchmark::new("Compress a PublicKey to Bigs", move |b| {
+            b.iter(|| {
+                black_box(public_key.point.as_raw().clone().getx().tobytes(&mut x_bytes));
+                black_box(public_key.point.as_raw().clone().gety().tobytes(&mut y_bytes));
+
             })
         })
         .sample_size(10),
@@ -203,7 +268,9 @@ fn key_generation(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    compression,
+    compression_signature,
+    compression_public_key,
+    compression_public_key_bigs,
     signing,
     aggregation,
     aggregate_verfication,
