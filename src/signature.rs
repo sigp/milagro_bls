@@ -1,6 +1,6 @@
 extern crate amcl;
 
-use super::amcl_utils::{ate_pairing, hash_on_g2, map_to_g2, GeneratorG1};
+use super::amcl_utils::{ate_pairing, hash_on_g2, map_to_g2, GENERATORG1};
 use super::errors::DecodeError;
 use super::g2::G2Point;
 use super::keys::{PublicKey, SecretKey};
@@ -39,7 +39,7 @@ impl Signature {
     pub fn verify(&self, msg: &[u8], d: u64, pk: &PublicKey) -> bool {
         let mut msg_hash_point = hash_on_g2(msg, d);
         msg_hash_point.affine();
-        let mut lhs = ate_pairing(self.point.as_raw(), &GeneratorG1);
+        let mut lhs = ate_pairing(self.point.as_raw(), &GENERATORG1);
         let mut rhs = ate_pairing(&msg_hash_point, &pk.point.as_raw());
         lhs.equals(&mut rhs)
     }
@@ -58,7 +58,7 @@ impl Signature {
     ) -> bool {
         let mut msg_hash_point = map_to_g2(msg_hash_real, msg_hash_imaginary);
         msg_hash_point.affine();
-        let mut lhs = ate_pairing(self.point.as_raw(), &GeneratorG1);
+        let mut lhs = ate_pairing(self.point.as_raw(), &GENERATORG1);
         let mut rhs = ate_pairing(&msg_hash_point, &pk.point.as_raw());
         lhs.equals(&mut rhs)
     }
@@ -164,17 +164,17 @@ mod tests {
             let input = test_case["input"].clone();
             // Convert domain from yaml to u64
             let domain = input["domain"].as_str().unwrap();
-            let domain = domain.trim_left_matches("0x");
+            let domain = domain.trim_start_matches("0x");
             let domain = u64::from_str_radix(domain, 16).unwrap();
 
             // Convert msg from yaml to bytes (Vec<u8>)
             let msg = input["message"].as_str().unwrap();
-            let msg = msg.trim_left_matches("0x");
+            let msg = msg.trim_start_matches("0x");
             let msg = hex::decode(msg).unwrap();
 
             // Convert privateKey from yaml to SecretKey
             let privkey = input["privkey"].as_str().unwrap();
-            let privkey = privkey.trim_left_matches("0x");
+            let privkey = privkey.trim_start_matches("0x");
             let mut privkey = hex::decode(privkey).unwrap();
             while privkey.len() < 48 {
                 // Prepend until correct length
@@ -188,7 +188,7 @@ mod tests {
 
             // Convert given output to rust compressed signature (Vec<u8>)
             let output = test_case["output"].as_str().unwrap();
-            let output = output.trim_left_matches("0x");
+            let output = output.trim_start_matches("0x");
             let output = hex::decode(output).unwrap();
 
             assert_eq!(output, compressed_sig);

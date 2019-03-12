@@ -1,6 +1,6 @@
 extern crate amcl;
 
-use super::amcl_utils::{ate_pairing, hash_on_g2, GeneratorG1, FP12};
+use super::amcl_utils::{ate_pairing, hash_on_g2, FP12, GENERATORG1};
 use super::errors::DecodeError;
 use super::g1::G1Point;
 use super::g2::G2Point;
@@ -109,7 +109,7 @@ impl AggregateSignature {
         key_point.affine();
         let mut msg_hash_point = hash_on_g2(msg, d);
         msg_hash_point.affine();
-        let mut lhs = ate_pairing(sig_point.as_raw(), &GeneratorG1);
+        let mut lhs = ate_pairing(sig_point.as_raw(), &GENERATORG1);
         let mut rhs = ate_pairing(&msg_hash_point, &key_point.as_raw());
         lhs.equals(&mut rhs)
     }
@@ -142,7 +142,7 @@ impl AggregateSignature {
             }
         }
 
-        let mut rhs = ate_pairing(sig_point.as_raw(), &GeneratorG1);
+        let mut rhs = ate_pairing(sig_point.as_raw(), &GENERATORG1);
         lhs.equals(&mut rhs)
     }
 
@@ -212,8 +212,8 @@ mod tests {
         let agg_sig_bytes = agg_sig.as_bytes();
         let agg_pub_bytes = agg_pub_key.as_bytes();
 
-        let mut agg_sig = AggregateSignature::from_bytes(&agg_sig_bytes).unwrap();
-        let mut agg_pub_key = AggregatePublicKey::from_bytes(&agg_pub_bytes).unwrap();
+        let agg_sig = AggregateSignature::from_bytes(&agg_sig_bytes).unwrap();
+        let agg_pub_key = AggregatePublicKey::from_bytes(&agg_pub_bytes).unwrap();
 
         assert!(agg_sig.verify(&message, domain, &agg_pub_key));
     }
@@ -594,7 +594,7 @@ mod tests {
 
             // Add each input signature to the aggregate signature
             for input in inputs {
-                let sig = input.as_str().unwrap().trim_left_matches("0x"); // String
+                let sig = input.as_str().unwrap().trim_start_matches("0x"); // String
                 let sig = hex::decode(sig).unwrap(); // Bytes
                 let sig = Signature::from_bytes(&sig).unwrap(); // Signature
                 aggregate_sig.add(&sig);
@@ -604,7 +604,7 @@ mod tests {
             let output = test_case["output"]
                 .as_str()
                 .unwrap()
-                .trim_left_matches("0x"); // String
+                .trim_start_matches("0x"); // String
             let output = hex::decode(output).unwrap(); // Bytes
 
             assert_eq!(aggregate_sig.as_bytes(), output);
@@ -634,7 +634,7 @@ mod tests {
 
         // Add each input PublicKey to AggregatePublicKey
         for input in inputs {
-            let pk = input.as_str().unwrap().trim_left_matches("0x"); // String
+            let pk = input.as_str().unwrap().trim_start_matches("0x"); // String
             let pk = hex::decode(pk).unwrap(); // Bytes
             let pk = PublicKey::from_bytes(&pk).unwrap(); // PublicKey
             aggregate_pk.add(&pk);
@@ -644,7 +644,7 @@ mod tests {
         let output = test_case[0]["output"]
             .as_str()
             .unwrap()
-            .trim_left_matches("0x"); // String
+            .trim_start_matches("0x"); // String
         let output = hex::decode(output).unwrap(); // Bytes
 
         assert_eq!(aggregate_pk.as_bytes(), output);

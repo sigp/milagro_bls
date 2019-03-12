@@ -4,10 +4,10 @@ extern crate criterion;
 extern crate hex;
 
 use self::amcl::bls381 as BLSCurve;
-use BLSCurve::big::BIG;
-use BLSCurve::ecp::ECP;
 use bls_aggregates::*;
 use criterion::{black_box, criterion_group, criterion_main, Benchmark, Criterion};
+use BLSCurve::big::BIG;
+use BLSCurve::ecp::ECP;
 
 pub type BigNum = BIG;
 pub type GroupG1 = ECP;
@@ -225,7 +225,8 @@ fn aggregate_verfication_multiple_messages(c: &mut Criterion) {
                         agg_pubs[i / (n / msgs.len())].add(&pubkeys[i]);
                     }
                     let agg_pubs_refs: Vec<&AggregatePublicKey> = agg_pubs.iter().collect();
-                    let verified = agg_sig.verify_multiple(&agg_msg[..], domain, agg_pubs_refs.as_slice());
+                    let verified =
+                        agg_sig.verify_multiple(&agg_msg[..], domain, agg_pubs_refs.as_slice());
 
                     assert!(verified);
                 })

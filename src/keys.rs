@@ -1,7 +1,7 @@
 extern crate amcl;
 extern crate rand;
 
-use super::amcl_utils::{BigNum, GeneratorG1, GroupG1, CURVE_ORDER, MOD_BYTE_SIZE};
+use super::amcl_utils::{BigNum, GroupG1, CURVE_ORDER, GENERATORG1, MOD_BYTE_SIZE};
 use super::errors::DecodeError;
 use super::g1::G1Point;
 use super::rng::get_seeded_rng;
@@ -66,7 +66,7 @@ impl PublicKey {
     /// Instantiate a PublicKey from some SecretKey.
     pub fn from_secret_key(sk: &SecretKey) -> Self {
         PublicKey {
-            point: G1Point::from_raw(GeneratorG1.mul(&sk.x)),
+            point: G1Point::from_raw(GENERATORG1.mul(&sk.x)),
         }
     }
 
@@ -91,7 +91,11 @@ impl PublicKey {
 
     /// Export the public key to uncompress (x, y) bytes
     pub fn as_uncompressed_bytes(&mut self) -> Vec<u8> {
-        let mut result:Vec<u8> = vec![];
+        if self.point.is_infinity() {
+            return vec![0; 96];
+        }
+
+        let mut result: Vec<u8> = vec![];
         let mut bytes = [0 as u8; 48];
         self.point.getx().tobytes(&mut bytes);
         result.extend_from_slice(&bytes);
@@ -106,12 +110,23 @@ impl PublicKey {
             return Err(DecodeError::IncorrectSize);
         }
 
+        let mut nil = true;
+        for byte in bytes {
+            if *byte != 0 {
+                nil = false;
+            }
+        }
+        if nil {
+            // Point is infinity
+            return Ok(PublicKey::new_from_raw(&GroupG1::new()));
+        }
+
         let x_big = BigNum::frombytes(&bytes[0..48]);
         let y_big = BigNum::frombytes(&bytes[48..]);
         let point = GroupG1::new_bigs(&x_big, &y_big);
 
         if point.is_infinity() {
-            return Err(DecodeError::Infinity);
+            return Err(DecodeError::BadPoint);
         }
 
         Ok(PublicKey::new_from_raw(&point))
@@ -159,32 +174,76 @@ mod tests {
 
     #[test]
     fn test_public_key_serialization_isomorphism() {
-        let sk_bytes = vec![
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78, 252, 122, 126, 32, 0, 75, 89, 252,
-            31, 42, 130, 254, 88, 6, 90, 138, 202, 135, 194, 233, 117, 181, 75, 96, 238, 79, 100,
-            237, 59, 140, 111,
-        ];
-        let sk = SecretKey::from_bytes(&sk_bytes).unwrap();
-        let pk = PublicKey::from_secret_key(&sk);
-        let decoded_pk = pk.as_bytes();
-        let encoded_pk = PublicKey::from_bytes(&decoded_pk).unwrap();
-        let re_recoded_pk = encoded_pk.as_bytes();
-        assert_eq!(decoded_pk, re_recoded_pk);
+        for _ in 0..30 {
+            let sk = SecretKey::random();
+            let pk = PublicKey::from_secret_key(&sk);
+            let decoded_pk = pk.as_bytes();
+            let encoded_pk = PublicKey::from_bytes(&decoded_pk).unwrap();
+            let re_recoded_pk = encoded_pk.as_bytes();
+            assert_eq!(decoded_pk, re_recoded_pk);
+        }
     }
 
     #[test]
     fn test_public_key_uncompressed_serialization_isomorphism() {
-        let sk_bytes = vec![
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78, 252, 122, 126, 32, 0, 75, 89, 252,
-            31, 42, 130, 254, 88, 6, 90, 138, 202, 135, 194, 233, 117, 181, 75, 96, 238, 79, 100,
-            237, 59, 140, 111,
-        ];
+        for _ in 0..30 {
+            let sk = SecretKey::random();
+            let mut pk = PublicKey::from_secret_key(&sk);
+            let decoded_pk = pk.as_uncompressed_bytes();
+            let mut encoded_pk = PublicKey::from_uncompressed_bytes(&decoded_pk).unwrap();
+            let re_recoded_pk = encoded_pk.as_uncompressed_bytes();
+            assert_eq!(decoded_pk, re_recoded_pk);
+        }
+    }
+
+    #[test]
+    fn test_public_key_uncompressed_serialization_infinity() {
+        let sk_bytes = vec![0; 48];
         let sk = SecretKey::from_bytes(&sk_bytes).unwrap();
         let mut pk = PublicKey::from_secret_key(&sk);
         let decoded_pk = pk.as_uncompressed_bytes();
-        let mut encoded_pk = PublicKey::from_uncompressed_bytes(&decoded_pk).unwrap();
-        let re_recoded_pk = encoded_pk.as_uncompressed_bytes();
-        assert_eq!(decoded_pk, re_recoded_pk);
+        let recoded_pk = PublicKey::from_uncompressed_bytes(&decoded_pk).unwrap();
+        assert_eq!(recoded_pk, pk);
+        assert!(recoded_pk.point.is_infinity())
+    }
+
+    #[test]
+    fn test_public_key_uncompressed_serialization_incorrect_size() {
+        let bytes = vec![0; 1];
+        assert_eq!(
+            PublicKey::from_uncompressed_bytes(&bytes),
+            Err(DecodeError::IncorrectSize)
+        );
+
+        let bytes = vec![0; 95];
+        assert_eq!(
+            PublicKey::from_uncompressed_bytes(&bytes),
+            Err(DecodeError::IncorrectSize)
+        );
+
+        let bytes = vec![0; 97];
+        assert_eq!(
+            PublicKey::from_uncompressed_bytes(&bytes),
+            Err(DecodeError::IncorrectSize)
+        );
+
+        let bytes = vec![];
+        assert_eq!(
+            PublicKey::from_uncompressed_bytes(&bytes),
+            Err(DecodeError::IncorrectSize)
+        );
+    }
+
+    #[test]
+    fn test_public_key_uncompressed_serialization_bad_point() {
+        // Point (1, 1) is not valid
+        let mut bytes = vec![0; 96];
+        bytes[47] = 1;
+        bytes[95] = 1;
+        assert_eq!(
+            PublicKey::from_uncompressed_bytes(&bytes),
+            Err(DecodeError::BadPoint)
+        );
     }
 
     #[test]
@@ -242,7 +301,7 @@ mod tests {
             // Convert input to rust formats
             let input = test_case["input"].as_str().unwrap();
             // Convert privateKey from yaml to SecretKey
-            let privkey = input.trim_left_matches("0x");
+            let privkey = input.trim_start_matches("0x");
             let mut privkey = hex::decode(privkey).unwrap();
             while privkey.len() < 48 {
                 // Prepend until correct length
@@ -256,7 +315,7 @@ mod tests {
 
             // Convert given output to rust PublicKey
             let output = test_case["output"].as_str().unwrap();
-            let output = output.trim_left_matches("0x");
+            let output = output.trim_start_matches("0x");
             let output = hex::decode(output).unwrap();
 
             assert_eq!(output, pk);

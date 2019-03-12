@@ -1,4 +1,4 @@
-use super::amcl_utils::{BigNum, compress_g1, decompress_g1, GroupG1};
+use super::amcl_utils::{compress_g1, decompress_g1, BigNum, GroupG1};
 use super::errors::DecodeError;
 use std::fmt;
 
