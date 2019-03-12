@@ -1,4 +1,4 @@
-use super::amcl_utils::{compress_g1, decompress_g1, GroupG1};
+use super::amcl_utils::{BigNum, compress_g1, decompress_g1, GroupG1};
 use super::errors::DecodeError;
 use std::fmt;
 
@@ -35,6 +35,14 @@ impl G1Point {
 
     pub fn as_raw(&self) -> &GroupG1 {
         &self.point
+    }
+
+    pub fn getx(&mut self) -> BigNum {
+        self.point.getx()
+    }
+
+    pub fn gety(&mut self) -> BigNum {
+        self.point.gety()
     }
 
     /// Instatiate the G1 point from compressed bytes.

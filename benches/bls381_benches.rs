@@ -64,19 +64,14 @@ fn compression_public_key(c: &mut Criterion) {
 
 fn compression_public_key_bigs(c: &mut Criterion) {
     let compressed_g1 = hex::decode("a491d1b0ecd9bb917989f0e74f0dea0422eac4a873e5e2644f368dffb9a6e20fd6e10c1b77654d067c0618f6e5a7f79a").unwrap();
-    let public_key = PublicKey::from_bytes(&compressed_g1).unwrap();
-    let mut x_bytes = [0 as u8; 48];
-    public_key.point.as_raw().clone().getx().tobytes(&mut x_bytes);
-    let mut y_bytes = [0 as u8; 48];
-    public_key.point.as_raw().clone().gety().tobytes(&mut y_bytes);
+    let mut public_key = PublicKey::from_bytes(&compressed_g1).unwrap();
+    let uncompressed_bytes = public_key.as_uncompressed_bytes();
 
     c.bench(
         "compression",
         Benchmark::new("Decompress a PublicKey from Bigs", move |b| {
             b.iter(|| {
-                let x_big = BigNum::frombytes(&x_bytes);
-                let y_big = BigNum::frombytes(&y_bytes);
-                black_box(PublicKey::new_from_raw(&GroupG1::new_bigs(&x_big, &y_big)));
+                black_box(PublicKey::from_uncompressed_bytes(&uncompressed_bytes));
             })
         })
         .sample_size(100),
@@ -86,9 +81,7 @@ fn compression_public_key_bigs(c: &mut Criterion) {
         "compression",
         Benchmark::new("Compress a PublicKey to Bigs", move |b| {
             b.iter(|| {
-                black_box(public_key.point.as_raw().clone().getx().tobytes(&mut x_bytes));
-                black_box(public_key.point.as_raw().clone().gety().tobytes(&mut y_bytes));
-
+                black_box(public_key.as_uncompressed_bytes());
             })
         })
         .sample_size(10),

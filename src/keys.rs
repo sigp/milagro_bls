@@ -77,16 +77,44 @@ impl PublicKey {
         }
     }
 
-    /// Instantiate a PublicKey from some bytes.
+    /// Instantiate a PublicKey from compressed bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<PublicKey, DecodeError> {
         let point = G1Point::from_bytes(bytes)?;
         Ok(Self { point })
     }
 
-    /// Export the PublicKey to some bytes.
+    /// Export the PublicKey to compressed bytes.
     pub fn as_bytes(&self) -> Vec<u8> {
         let mut clone = self.point.clone();
         clone.as_bytes()
+    }
+
+    /// Export the public key to uncompress (x, y) bytes
+    pub fn as_uncompressed_bytes(&mut self) -> Vec<u8> {
+        let mut result:Vec<u8> = vec![];
+        let mut bytes = [0 as u8; 48];
+        self.point.getx().tobytes(&mut bytes);
+        result.extend_from_slice(&bytes);
+        self.point.gety().tobytes(&mut bytes);
+        result.extend_from_slice(&bytes);
+        result
+    }
+
+    /// InstantiatePublicKey from uncompress (x, y) bytes
+    pub fn from_uncompressed_bytes(bytes: &[u8]) -> Result<PublicKey, DecodeError> {
+        if bytes.len() != 96 {
+            return Err(DecodeError::IncorrectSize);
+        }
+
+        let x_big = BigNum::frombytes(&bytes[0..48]);
+        let y_big = BigNum::frombytes(&bytes[48..]);
+        let point = GroupG1::new_bigs(&x_big, &y_big);
+
+        if point.is_infinity() {
+            return Err(DecodeError::Infinity);
+        }
+
+        Ok(PublicKey::new_from_raw(&point))
     }
 }
 
@@ -141,6 +169,21 @@ mod tests {
         let decoded_pk = pk.as_bytes();
         let encoded_pk = PublicKey::from_bytes(&decoded_pk).unwrap();
         let re_recoded_pk = encoded_pk.as_bytes();
+        assert_eq!(decoded_pk, re_recoded_pk);
+    }
+
+    #[test]
+    fn test_public_key_uncompressed_serialization_isomorphism() {
+        let sk_bytes = vec![
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78, 252, 122, 126, 32, 0, 75, 89, 252,
+            31, 42, 130, 254, 88, 6, 90, 138, 202, 135, 194, 233, 117, 181, 75, 96, 238, 79, 100,
+            237, 59, 140, 111,
+        ];
+        let sk = SecretKey::from_bytes(&sk_bytes).unwrap();
+        let mut pk = PublicKey::from_secret_key(&sk);
+        let decoded_pk = pk.as_uncompressed_bytes();
+        let mut encoded_pk = PublicKey::from_uncompressed_bytes(&decoded_pk).unwrap();
+        let re_recoded_pk = encoded_pk.as_uncompressed_bytes();
         assert_eq!(decoded_pk, re_recoded_pk);
     }
 
