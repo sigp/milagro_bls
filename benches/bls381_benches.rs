@@ -1,12 +1,19 @@
+extern crate amcl;
 extern crate bls_aggregates;
 extern crate criterion;
 extern crate hex;
 
+use self::amcl::bls381 as BLSCurve;
 use bls_aggregates::*;
 use criterion::{black_box, criterion_group, criterion_main, Benchmark, Criterion};
+use BLSCurve::big::BIG;
+use BLSCurve::ecp::ECP;
 
-fn compression(c: &mut Criterion) {
-    let compressed_g2 = hex::decode("1351bdf582971f796bbaf6320e81251c9d28f674d720cca07ed14596b96697cf18238e0e03ebd7fc1353d885a39407e012cc74bc9f089ed9764bbceac5edba416bef5e73701288977b9cac1ccb6964269d4ebf78b4e8aa7792ba09d3e49c8e6a").unwrap();
+pub type BigNum = BIG;
+pub type GroupG1 = ECP;
+
+fn compression_signature(c: &mut Criterion) {
+    let compressed_g2 = hex::decode("a666d31d7e6561371644eb9ca7dbcb87257d8fd84a09e38a7a491ce0bbac64a324aa26385aebc99f47432970399a2ecb0def2d4be359640e6dae6438119cbdc4f18e5e4496c68a979473a72b72d3badf98464412e9d8f8d2ea9b31953bb24899").unwrap();
     let mut signature = Signature::from_bytes(&compressed_g2).unwrap();
 
     c.bench(
@@ -24,6 +31,57 @@ fn compression(c: &mut Criterion) {
         Benchmark::new("Compress a Signature", move |b| {
             b.iter(|| {
                 black_box(Signature::as_bytes(&mut signature));
+            })
+        })
+        .sample_size(10),
+    );
+}
+
+fn compression_public_key(c: &mut Criterion) {
+    let compressed_g1 = hex::decode("a491d1b0ecd9bb917989f0e74f0dea0422eac4a873e5e2644f368dffb9a6e20fd6e10c1b77654d067c0618f6e5a7f79a").unwrap();
+    let mut public_key = PublicKey::from_bytes(&compressed_g1).unwrap();
+
+    c.bench(
+        "compression",
+        Benchmark::new("Decompress a PublicKey", move |b| {
+            b.iter(|| {
+                black_box(PublicKey::from_bytes(&compressed_g1).unwrap());
+            })
+        })
+        .sample_size(100),
+    );
+
+    c.bench(
+        "compression",
+        Benchmark::new("Compress a PublicKey", move |b| {
+            b.iter(|| {
+                black_box(PublicKey::as_bytes(&mut public_key));
+            })
+        })
+        .sample_size(10),
+    );
+}
+
+fn compression_public_key_bigs(c: &mut Criterion) {
+    let compressed_g1 = hex::decode("a491d1b0ecd9bb917989f0e74f0dea0422eac4a873e5e2644f368dffb9a6e20fd6e10c1b77654d067c0618f6e5a7f79a").unwrap();
+    let mut public_key = PublicKey::from_bytes(&compressed_g1).unwrap();
+    let uncompressed_bytes = public_key.as_uncompressed_bytes();
+
+    c.bench(
+        "compression",
+        Benchmark::new("Decompress a PublicKey from Bigs", move |b| {
+            b.iter(|| {
+                black_box(PublicKey::from_uncompressed_bytes(&uncompressed_bytes));
+            })
+        })
+        .sample_size(100),
+    );
+
+    c.bench(
+        "compression",
+        Benchmark::new("Compress a PublicKey to Bigs", move |b| {
+            b.iter(|| {
+                black_box(public_key.as_uncompressed_bytes());
             })
         })
         .sample_size(10),
@@ -117,7 +175,8 @@ fn aggregate_verfication(c: &mut Criterion) {
         "aggregation",
         Benchmark::new("Verifying aggregate of 128 signatures", move |b| {
             b.iter(|| {
-                let agg_pub = AggregatePublicKey::from_public_keys(&pubkeys);
+                let pubkeys_as_ref: Vec<&PublicKey> = pubkeys.iter().collect();
+                let agg_pub = AggregatePublicKey::from_public_keys(pubkeys_as_ref.as_slice());
                 let verified = agg_sig.verify(&msg[..], domain, &agg_pub);
                 assert!(verified);
             })
@@ -165,8 +224,9 @@ fn aggregate_verfication_multiple_messages(c: &mut Criterion) {
                     for i in 0..n {
                         agg_pubs[i / (n / msgs.len())].add(&pubkeys[i]);
                     }
-
-                    let verified = agg_sig.verify_multiple(&agg_msg[..], domain, &agg_pubs);
+                    let agg_pubs_refs: Vec<&AggregatePublicKey> = agg_pubs.iter().collect();
+                    let verified =
+                        agg_sig.verify_multiple(&agg_msg[..], domain, agg_pubs_refs.as_slice());
 
                     assert!(verified);
                 })
@@ -202,7 +262,9 @@ fn key_generation(c: &mut Criterion) {
 
 criterion_group!(
     benches,
-    compression,
+    compression_signature,
+    compression_public_key,
+    compression_public_key_bigs,
     signing,
     aggregation,
     aggregate_verfication,

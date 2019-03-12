@@ -63,8 +63,8 @@ pub const G2_COFACTOR_SHIFT: [Chunk; NLEN] = [
 ];
 
 lazy_static! {
-    pub static ref GeneratorG1: GroupG1 = GroupG1::generator();
-    pub static ref GeneratorG2: GroupG2 = GroupG2::generator();
+    pub static ref GENERATORG1: GroupG1 = GroupG1::generator();
+    pub static ref GENERATORG2: GroupG2 = GroupG2::generator();
 }
 
 // Take given message and domain and convert it to GroupG2 point
@@ -180,7 +180,8 @@ pub fn compress_g1(g1: &mut GroupG1) -> Vec<u8> {
     if g1.is_infinity() {
         let mut result: Vec<u8> = vec![0; MODBYTES];
         // Set b_flag and c_flag to 1, all else to 0
-        result[0] += u8::pow(2, 6) + u8::pow(2, 7);
+        result[0] = u8::pow(2, 6) + u8::pow(2, 7);
+        return result;
     }
 
     // Convert point to array of bytes (x, y)
@@ -193,8 +194,8 @@ pub fn compress_g1(g1: &mut GroupG1) -> Vec<u8> {
 
     // Set flags
     let a_flag = calc_a_flag(&mut BigNum::frombytes(&g1_bytes[MODBYTES + 1..]));
-    result[0] = result[0] + u8::pow(2, 5) * a_flag; // set a_flag
-    result[0] = result[0] + u8::pow(2, 7); // c_flag
+    result[0] += u8::pow(2, 5) * a_flag; // set a_flag
+    result[0] += u8::pow(2, 7); // c_flag
 
     result
 }
@@ -211,7 +212,7 @@ pub fn decompress_g1(g1_bytes: &[u8]) -> Result<GroupG1, DecodeError> {
     // c_flag must be set
     if g1_bytes[0] / u8::pow(2, 7) != 1 {
         // Invalid bytes
-        return Err(DecodeError::BadPoint);
+        return Err(DecodeError::InvalidCFlag);
     }
 
     // Check b_flag
@@ -221,8 +222,8 @@ pub fn decompress_g1(g1_bytes: &[u8]) -> Result<GroupG1, DecodeError> {
             return Err(DecodeError::BadPoint);
         }
 
-        for i in 1..g1_bytes.len() {
-            if g1_bytes[i] != 0 {
+        for item in g1_bytes.iter().skip(1) {
+            if *item != 0 {
                 return Err(DecodeError::BadPoint);
             }
         }
@@ -244,7 +245,7 @@ pub fn decompress_g1(g1_bytes: &[u8]) -> Result<GroupG1, DecodeError> {
     }
 
     // Confirm a_flag
-    let calculated_a_flag = calc_a_flag(&mut point.gety().clone());
+    let calculated_a_flag = calc_a_flag(&mut point.gety());
     if calculated_a_flag != a_flag {
         point.neg();
     }
@@ -283,7 +284,7 @@ pub fn compress_g2(g2: &mut GroupG2) -> Vec<u8> {
 
     // Set flags
     let a_flag = calc_a_flag(&mut BigNum::frombytes(&g2_bytes[MODBYTES * 3..]));
-    result[0] = result[0] + u8::pow(2, 5) * a_flag;
+    result[0] += u8::pow(2, 5) * a_flag;
     result[0] += u8::pow(2, 7); // c_flag
 
     result
@@ -299,7 +300,7 @@ pub fn decompress_g2(g2_bytes: &[u8]) -> Result<GroupG2, DecodeError> {
     // c_flag must be set
     if g2_bytes[0] / u8::pow(2, 7) != 1 {
         // Invalid bytes
-        return Err(DecodeError::BadPoint);
+        return Err(DecodeError::InvalidCFlag);
     }
 
     // Check b_flag
@@ -309,8 +310,8 @@ pub fn decompress_g2(g2_bytes: &[u8]) -> Result<GroupG2, DecodeError> {
             return Err(DecodeError::BadPoint);
         }
 
-        for i in 1..g2_bytes.len() {
-            if g2_bytes[i] != 0 {
+        for item in g2_bytes.iter().skip(1) {
+            if *item != 0 {
                 return Err(DecodeError::BadPoint);
             }
         }
@@ -337,7 +338,7 @@ pub fn decompress_g2(g2_bytes: &[u8]) -> Result<GroupG2, DecodeError> {
     }
 
     // Confirm a_flag matches given flag
-    let calculated_a_flag = calc_a_flag(&mut point.gety().getb().clone());
+    let calculated_a_flag = calc_a_flag(&mut point.gety().getb());
     if calculated_a_flag != a_flag {
         point.neg();
     }
@@ -357,7 +358,7 @@ pub fn calc_a_flag(y: &mut BigNum) -> u8 {
     // Multiply y by two with carrying
     let mut carry: u64 = 0;
     for (i, y_byte) in y_bytes.iter().enumerate() {
-        let res: u64 = *y_byte as u64 * 2 + carry;
+        let res = u64::from(*y_byte) * 2 + carry;
         carry = res - res % u64::pow(2, 8);
         results[i] = (res % u64::pow(2, 8)) as u8;
     }
@@ -371,7 +372,7 @@ pub fn calc_a_flag(y: &mut BigNum) -> u8 {
         }
     }
 
-    return 1; // Should not be reached as q is prime -> 2 * y != q
+    1 // Should not be reached as q is prime -> 2 * y != q
 }
 
 #[cfg(test)]
@@ -401,6 +402,22 @@ mod tests {
         let mut decompressed = decompress_g1(&compressed).unwrap();
         let compressed_result = compress_g1(&mut decompressed);
         assert_eq!(compressed, compressed_result);
+    }
+
+    #[test]
+    fn test_to_from_infinity_g1() {
+        let mut point = GroupG1::new();
+        let compressed = compress_g1(&mut point);
+        let mut round_trip_point = decompress_g1(&compressed).unwrap();
+        assert_eq!(point.tostring(), round_trip_point.tostring());
+    }
+
+    #[test]
+    fn test_to_from_infinity_g2() {
+        let mut point = GroupG2::new();
+        let compressed = compress_g2(&mut point);
+        let mut round_trip_point = decompress_g2(&compressed).unwrap();
+        assert_eq!(point.tostring(), round_trip_point.tostring());
     }
 
     #[test]
@@ -463,12 +480,12 @@ mod tests {
             let input = test_case["input"].clone();
             // Convert domain from indexed yaml to u64
             let domain = input["domain"].as_str().unwrap();
-            let domain = domain.trim_left_matches("0x");
+            let domain = domain.trim_start_matches("0x");
             let domain = u64::from_str_radix(domain, 16).unwrap();
 
             // Convert msg from indexed yaml to bytes (Vec<u8>)
             let msg = input["message"].as_str().unwrap();
-            let msg = msg.trim_left_matches("0x");
+            let msg = msg.trim_start_matches("0x");
             let msg = hex::decode(msg).unwrap();
 
             // Function results returns GroupG2 point
@@ -488,9 +505,9 @@ mod tests {
                 }
 
                 // Convert output (a, b) to bytes
-                let output_a = fp2[0].as_str().unwrap().trim_left_matches("0x");
+                let output_a = fp2[0].as_str().unwrap().trim_start_matches("0x");
                 let output_a = hex::decode(output_a).unwrap();
-                let output_b = fp2[1].as_str().unwrap().trim_left_matches("0x");
+                let output_b = fp2[1].as_str().unwrap().trim_start_matches("0x");
                 let output_b = hex::decode(output_b).unwrap();
 
                 // Convert the result (a,b) to bytes
@@ -529,12 +546,12 @@ mod tests {
             let input = test_case["input"].clone();
             // Convert domain from indexed yaml to u64
             let domain = input["domain"].as_str().unwrap();
-            let domain = domain.trim_left_matches("0x");
+            let domain = domain.trim_start_matches("0x");
             let domain = u64::from_str_radix(domain, 16).unwrap();
 
             // Convert msg from indexed yaml to bytes (Vec<u8>)
             let msg = input["message"].as_str().unwrap();
-            let msg = msg.trim_left_matches("0x");
+            let msg = msg.trim_start_matches("0x");
             let msg = hex::decode(msg).unwrap();
 
             // Function results returns GroupG2 point, then compress
@@ -543,11 +560,11 @@ mod tests {
 
             // Convert ouput to compressed bytes
             let output = test_case["output"].clone();
-            let mut a = hex::decode(output[0].as_str().unwrap().trim_left_matches("0x")).unwrap();
+            let mut a = hex::decode(output[0].as_str().unwrap().trim_start_matches("0x")).unwrap();
             while a.len() < MOD_BYTE_SIZE {
                 a.insert(0, 0);
             }
-            let mut b = hex::decode(output[1].as_str().unwrap().trim_left_matches("0x")).unwrap();
+            let mut b = hex::decode(output[1].as_str().unwrap().trim_start_matches("0x")).unwrap();
             while b.len() < MOD_BYTE_SIZE {
                 b.insert(0, 0);
             }
