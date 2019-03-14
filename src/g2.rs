@@ -69,7 +69,8 @@ impl PartialEq for G2Point {
     fn eq(&self, other: &G2Point) -> bool {
         let mut clone_a = self.clone();
         let mut clone_b = other.clone();
-        clone_a.as_bytes() == clone_b.as_bytes()
+
+        clone_a.point.equals(&mut clone_b.point)
     }
 }
 
