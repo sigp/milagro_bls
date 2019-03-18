@@ -32,8 +32,9 @@ impl AggregatePublicKey {
     pub fn from_public_keys(keys: &[&PublicKey]) -> Self {
         let mut agg_key = AggregatePublicKey::new();
         for key in keys {
-            agg_key.add(&key)
+            agg_key.point.add(&key.point)
         }
+        agg_key.point.affine();
         agg_key
     }
 
