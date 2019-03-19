@@ -166,8 +166,8 @@ impl Keypair {
 #[cfg(test)]
 mod tests {
     extern crate hex;
-    extern crate yaml_rust;
     extern crate rand;
+    extern crate yaml_rust;
 
     use self::yaml_rust::yaml;
     use super::super::amcl_utils::compress_g1;

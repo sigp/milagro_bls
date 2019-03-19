@@ -1,8 +1,8 @@
 extern crate amcl;
 extern crate bls_aggregates;
 extern crate criterion;
-extern crate rand;
 extern crate hex;
+extern crate rand;
 
 use self::amcl::bls381 as BLSCurve;
 use bls_aggregates::*;
