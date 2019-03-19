@@ -1,6 +1,7 @@
 extern crate amcl;
 extern crate bls_aggregates;
 extern crate criterion;
+extern crate rand;
 extern crate hex;
 
 use self::amcl::bls381 as BLSCurve;
@@ -71,7 +72,7 @@ fn compression_public_key_bigs(c: &mut Criterion) {
         "compression",
         Benchmark::new("Decompress a PublicKey from Bigs", move |b| {
             b.iter(|| {
-                black_box(PublicKey::from_uncompressed_bytes(&uncompressed_bytes));
+                black_box(PublicKey::from_uncompressed_bytes(&uncompressed_bytes)).unwrap();
             })
         })
         .sample_size(100),
@@ -89,7 +90,7 @@ fn compression_public_key_bigs(c: &mut Criterion) {
 }
 
 fn signing(c: &mut Criterion) {
-    let keypair = Keypair::random();
+    let keypair = Keypair::random(&mut rand::thread_rng());
     let sk = keypair.sk;
     let pk = keypair.pk;
 
@@ -119,7 +120,7 @@ fn signing(c: &mut Criterion) {
 }
 
 fn aggregation(c: &mut Criterion) {
-    let keypair = Keypair::random();
+    let keypair = Keypair::random(&mut rand::thread_rng());
     let sk = keypair.sk;
     let pk = keypair.pk;
 
@@ -163,7 +164,7 @@ fn aggregate_verfication(c: &mut Criterion) {
     let domain = 0;
 
     for _ in 0..n {
-        let keypair = Keypair::random();
+        let keypair = Keypair::random(&mut rand::thread_rng());
         let sig = Signature::new(&msg[..], domain, &keypair.sk);
         agg_sig.add(&sig);
         pubkeys.push(keypair.pk);
@@ -196,7 +197,7 @@ fn aggregate_verfication_multiple_messages(c: &mut Criterion) {
     let domain = 0;
 
     for i in 0..n {
-        let keypair = Keypair::random();
+        let keypair = Keypair::random(&mut rand::thread_rng());
 
         let msg = &msgs[i / (n / msgs.len())];
 
@@ -241,7 +242,7 @@ fn key_generation(c: &mut Criterion) {
         "key generation",
         Benchmark::new("Generate random keypair", move |b| {
             b.iter(|| {
-                black_box(Keypair::random());
+                black_box(Keypair::random(&mut rand::thread_rng()));
             })
         }),
     );
