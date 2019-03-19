@@ -114,7 +114,7 @@ impl AggregateSignature {
         let mut lhs = {
             #[cfg(feature = "std")]
             {
-                ate_pairing(sig_point.as_raw(), &GENERATORG1)
+                ate_pairing(sig_point.as_raw(), &amcl_utils::GENERATORG1)
             }
             #[cfg(not(feature = "std"))]
             {
@@ -156,7 +156,7 @@ impl AggregateSignature {
         let mut rhs = {
             #[cfg(feature = "std")]
             {
-                ate_pairing(sig_point.as_raw(), &GENERATORG1)
+                ate_pairing(sig_point.as_raw(), &amcl_utils::GENERATORG1)
             }
             #[cfg(not(feature = "std"))]
             {
@@ -189,6 +189,7 @@ impl Default for AggregateSignature {
 mod tests {
     extern crate hex;
     extern crate yaml_rust;
+    extern crate rand;
 
     use self::yaml_rust::yaml;
     use super::super::keys::{Keypair, SecretKey};
@@ -383,22 +384,22 @@ mod tests {
 
     #[test]
     fn test_random_aggregate_public_keys() {
-        let control_kp = Keypair::random();
+        let control_kp = Keypair::random(&mut rand::thread_rng());
         let signing_kps = vec![
-            Keypair::random(),
-            Keypair::random(),
-            Keypair::random(),
-            Keypair::random(),
-            Keypair::random(),
-            Keypair::random(),
+            Keypair::random(&mut rand::thread_rng()),
+            Keypair::random(&mut rand::thread_rng()),
+            Keypair::random(&mut rand::thread_rng()),
+            Keypair::random(&mut rand::thread_rng()),
+            Keypair::random(&mut rand::thread_rng()),
+            Keypair::random(&mut rand::thread_rng()),
         ];
         let non_signing_kps = vec![
-            Keypair::random(),
-            Keypair::random(),
-            Keypair::random(),
-            Keypair::random(),
-            Keypair::random(),
-            Keypair::random(),
+            Keypair::random(&mut rand::thread_rng()),
+            Keypair::random(&mut rand::thread_rng()),
+            Keypair::random(&mut rand::thread_rng()),
+            Keypair::random(&mut rand::thread_rng()),
+            Keypair::random(&mut rand::thread_rng()),
+            Keypair::random(&mut rand::thread_rng()),
         ];
         helper_test_aggregate_public_keys(control_kp, signing_kps, non_signing_kps);
     }
@@ -479,11 +480,11 @@ mod tests {
 
         // To form first AggregatePublicKey (and sign messages)
         let mut aggregate_signature = AggregateSignature::new();
-        let keypair_1 = Keypair::random();
+        let keypair_1 = Keypair::random(&mut rand::thread_rng());
         aggregate_signature.add(&Signature::new(&msg_1, domain, &keypair_1.sk));
-        let keypair_2 = Keypair::random();
+        let keypair_2 = Keypair::random(&mut rand::thread_rng());
         aggregate_signature.add(&Signature::new(&msg_1, domain, &keypair_2.sk));
-        let keypair_3 = Keypair::random();
+        let keypair_3 = Keypair::random(&mut rand::thread_rng());
         aggregate_signature.add(&Signature::new(&msg_1, domain, &keypair_3.sk));
         let apk_1 =
             AggregatePublicKey::from_public_keys(&[&keypair_1.pk, &keypair_2.pk, &keypair_3.pk]);
@@ -491,11 +492,11 @@ mod tests {
         assert!(aggregate_signature.verify_multiple(&msg_1, domain, &[&apk_1]));
 
         // To form second AggregatePublicKey (and sign messages)
-        let keypair_1 = Keypair::random();
+        let keypair_1 = Keypair::random(&mut rand::thread_rng());
         aggregate_signature.add(&Signature::new(&msg_2, domain, &keypair_1.sk));
-        let keypair_2 = Keypair::random();
+        let keypair_2 = Keypair::random(&mut rand::thread_rng());
         aggregate_signature.add(&Signature::new(&msg_2, domain, &keypair_2.sk));
-        let keypair_3 = Keypair::random();
+        let keypair_3 = Keypair::random(&mut rand::thread_rng());
         aggregate_signature.add(&Signature::new(&msg_2, domain, &keypair_3.sk));
         let apk_2 =
             AggregatePublicKey::from_public_keys(&[&keypair_1.pk, &keypair_2.pk, &keypair_3.pk]);
@@ -517,8 +518,8 @@ mod tests {
         let mut apk_1 = AggregatePublicKey::new();
         let mut apk_2 = AggregatePublicKey::new();
         for _ in 0..1024 {
-            let key_1 = Keypair::random();
-            let key_2 = Keypair::random();
+            let key_1 = Keypair::random(&mut rand::thread_rng());
+            let key_2 = Keypair::random(&mut rand::thread_rng());
             apk_1.add(&key_1.pk);
             apk_2.add(&key_2.pk);
             aggregate_signature.add(&Signature::new(&msg_1, domain, &key_1.sk));
@@ -537,11 +538,11 @@ mod tests {
 
         // To form first AggregatePublicKey (and sign messages)
         let mut aggregate_signature = AggregateSignature::new();
-        let keypair_1 = Keypair::random();
+        let keypair_1 = Keypair::random(&mut rand::thread_rng());
         aggregate_signature.add(&Signature::new(&msg_1, domain, &keypair_1.sk));
-        let keypair_2 = Keypair::random();
+        let keypair_2 = Keypair::random(&mut rand::thread_rng());
         aggregate_signature.add(&Signature::new(&msg_1, domain, &keypair_2.sk));
-        let keypair_3 = Keypair::random();
+        let keypair_3 = Keypair::random(&mut rand::thread_rng());
         aggregate_signature.add(&Signature::new(&msg_1, domain, &keypair_3.sk));
 
         // Too few public keys
@@ -570,11 +571,11 @@ mod tests {
 
         // To form second AggregatePublicKey and second Message
         msg_2.push(222); // msg_2 now 33 bytes
-        let keypair_1 = Keypair::random();
+        let keypair_1 = Keypair::random(&mut rand::thread_rng());
         aggregate_signature.add(&Signature::new(&msg_2, domain, &keypair_1.sk));
-        let keypair_2 = Keypair::random();
+        let keypair_2 = Keypair::random(&mut rand::thread_rng());
         aggregate_signature.add(&Signature::new(&msg_2, domain, &keypair_2.sk));
-        let keypair_3 = Keypair::random();
+        let keypair_3 = Keypair::random(&mut rand::thread_rng());
         aggregate_signature.add(&Signature::new(&msg_2, domain, &keypair_3.sk));
         let apk_2 =
             AggregatePublicKey::from_public_keys(&[&keypair_1.pk, &keypair_2.pk, &keypair_3.pk]);
@@ -672,10 +673,10 @@ mod tests {
 
     #[test]
     pub fn add_aggregate_public_key() {
-        let keypair_1 = Keypair::random();
-        let keypair_2 = Keypair::random();
-        let keypair_3 = Keypair::random();
-        let keypair_4 = Keypair::random();
+        let keypair_1 = Keypair::random(&mut rand::thread_rng());
+        let keypair_2 = Keypair::random(&mut rand::thread_rng());
+        let keypair_3 = Keypair::random(&mut rand::thread_rng());
+        let keypair_4 = Keypair::random(&mut rand::thread_rng());
 
         let aggregate_public_key12 =
             AggregatePublicKey::from_public_keys(&[&keypair_1.pk, &keypair_2.pk]);
@@ -704,10 +705,10 @@ mod tests {
         let domain = 45 as u64;
         let msg: Vec<u8> = vec![1; 32];
 
-        let keypair_1 = Keypair::random();
-        let keypair_2 = Keypair::random();
-        let keypair_3 = Keypair::random();
-        let keypair_4 = Keypair::random();
+        let keypair_1 = Keypair::random(&mut rand::thread_rng());
+        let keypair_2 = Keypair::random(&mut rand::thread_rng());
+        let keypair_3 = Keypair::random(&mut rand::thread_rng());
+        let keypair_4 = Keypair::random(&mut rand::thread_rng());
 
         let sig_1 = Signature::new(&msg, domain, &keypair_1.sk);
         let sig_2 = Signature::new(&msg, domain, &keypair_2.sk);

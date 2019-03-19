@@ -73,7 +73,7 @@ impl PublicKey {
             point: {
                 #[cfg(feature = "std")]
                 {
-                    G1Point::from_raw(GENERATORG1.mul(&sk.x))
+                    G1Point::from_raw(amcl_utils::GENERATORG1.mul(&sk.x))
                 }
                 #[cfg(not(feature = "std"))]
                 {
@@ -167,6 +167,7 @@ impl Keypair {
 mod tests {
     extern crate hex;
     extern crate yaml_rust;
+    extern crate rand;
 
     use self::yaml_rust::yaml;
     use super::super::amcl_utils::compress_g1;
@@ -189,7 +190,7 @@ mod tests {
     #[test]
     fn test_public_key_serialization_isomorphism() {
         for _ in 0..30 {
-            let sk = SecretKey::random();
+            let sk = SecretKey::random(&mut rand::thread_rng());
             let pk = PublicKey::from_secret_key(&sk);
             let decoded_pk = pk.as_bytes();
             let encoded_pk = PublicKey::from_bytes(&decoded_pk).unwrap();
@@ -201,7 +202,7 @@ mod tests {
     #[test]
     fn test_public_key_uncompressed_serialization_isomorphism() {
         for _ in 0..30 {
-            let sk = SecretKey::random();
+            let sk = SecretKey::random(&mut rand::thread_rng());
             let mut pk = PublicKey::from_secret_key(&sk);
             let decoded_pk = pk.as_uncompressed_bytes();
             let mut encoded_pk = PublicKey::from_uncompressed_bytes(&decoded_pk).unwrap();
@@ -282,7 +283,7 @@ mod tests {
 
     #[test]
     fn test_random_secret_key_can_sign() {
-        let sk = SecretKey::random();
+        let sk = SecretKey::random(&mut rand::thread_rng());
         let pk = PublicKey::from_secret_key(&sk);
         let domain = 42;
 

@@ -43,7 +43,7 @@ impl Signature {
         let mut lhs = {
             #[cfg(feature = "std")]
             {
-                ate_pairing(self.point.as_raw(), &GENERATORG1)
+                ate_pairing(self.point.as_raw(), &amcl_utils::GENERATORG1)
             }
             #[cfg(not(feature = "std"))]
             {
@@ -71,7 +71,7 @@ impl Signature {
         let mut lhs = {
             #[cfg(feature = "std")]
             {
-                ate_pairing(self.point.as_raw(), &GENERATORG1)
+                ate_pairing(self.point.as_raw(), &amcl_utils::GENERATORG1)
             }
             #[cfg(not(feature = "std"))]
             {
@@ -99,6 +99,7 @@ impl Signature {
 mod tests {
     extern crate hex;
     extern crate yaml_rust;
+    extern crate rand;
 
     use self::yaml_rust::yaml;
     use super::super::keys::Keypair;
@@ -107,7 +108,7 @@ mod tests {
 
     #[test]
     fn basic_sign_verify() {
-        let keypair = Keypair::random();
+        let keypair = Keypair::random(&mut rand::thread_rng());
         let sk = keypair.sk;
         let vk = keypair.pk;
 
@@ -134,7 +135,7 @@ mod tests {
 
     #[test]
     fn verification_failure_message() {
-        let keypair = Keypair::random();
+        let keypair = Keypair::random(&mut rand::thread_rng());
         let sk = keypair.sk;
         let vk = keypair.pk;
 
@@ -149,7 +150,7 @@ mod tests {
 
     #[test]
     fn verification_failure_domain() {
-        let keypair = Keypair::random();
+        let keypair = Keypair::random(&mut rand::thread_rng());
         let sk = keypair.sk;
         let vk = keypair.pk;
 
