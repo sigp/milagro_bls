@@ -41,10 +41,12 @@ impl Signature {
         let mut msg_hash_point = hash_on_g2(msg, d);
         msg_hash_point.affine();
         let mut lhs = {
-            #[cfg(feature = "std")] {
+            #[cfg(feature = "std")]
+            {
                 ate_pairing(self.point.as_raw(), &GENERATORG1)
             }
-            #[cfg(not(feature = "std"))] {
+            #[cfg(not(feature = "std"))]
+            {
                 ate_pairing(self.point.as_raw(), &amcl_utils::GroupG1::generator())
             }
         };
@@ -67,10 +69,12 @@ impl Signature {
         let mut msg_hash_point = map_to_g2(msg_hash_real, msg_hash_imaginary);
         msg_hash_point.affine();
         let mut lhs = {
-            #[cfg(feature = "std")] {
+            #[cfg(feature = "std")]
+            {
                 ate_pairing(self.point.as_raw(), &GENERATORG1)
             }
-            #[cfg(not(feature = "std"))] {
+            #[cfg(not(feature = "std"))]
+            {
                 ate_pairing(self.point.as_raw(), &amcl_utils::GroupG1::generator())
             }
         };

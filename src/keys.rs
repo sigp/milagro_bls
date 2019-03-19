@@ -71,10 +71,12 @@ impl PublicKey {
     pub fn from_secret_key(sk: &SecretKey) -> Self {
         PublicKey {
             point: {
-                #[cfg(feature = "std")] {
+                #[cfg(feature = "std")]
+                {
                     G1Point::from_raw(GENERATORG1.mul(&sk.x))
                 }
-                #[cfg(not(feature = "std"))] {
+                #[cfg(not(feature = "std"))]
+                {
                     G1Point::from_raw(amcl_utils::GroupG1::generator().mul(&sk.x))
                 }
             },

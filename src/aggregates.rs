@@ -112,10 +112,12 @@ impl AggregateSignature {
         let mut msg_hash_point = hash_on_g2(msg, d);
         msg_hash_point.affine();
         let mut lhs = {
-            #[cfg(feature = "std")] {
+            #[cfg(feature = "std")]
+            {
                 ate_pairing(sig_point.as_raw(), &GENERATORG1)
             }
-            #[cfg(not(feature = "std"))] {
+            #[cfg(not(feature = "std"))]
+            {
                 ate_pairing(sig_point.as_raw(), &amcl_utils::GroupG1::generator())
             }
         };
@@ -152,10 +154,12 @@ impl AggregateSignature {
         }
 
         let mut rhs = {
-            #[cfg(feature = "std")] {
+            #[cfg(feature = "std")]
+            {
                 ate_pairing(sig_point.as_raw(), &GENERATORG1)
             }
-            #[cfg(not(feature = "std"))] {
+            #[cfg(not(feature = "std"))]
+            {
                 ate_pairing(sig_point.as_raw(), &amcl_utils::GroupG1::generator())
             }
         };
