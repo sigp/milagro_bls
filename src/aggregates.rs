@@ -1,6 +1,6 @@
 extern crate amcl;
 
-use super::amcl_utils::{ate_pairing, hash_on_g2, FP12, GENERATORG1};
+use super::amcl_utils::{self, ate_pairing, hash_on_g2, FP12};
 use super::errors::DecodeError;
 use super::g1::G1Point;
 use super::g2::G2Point;
@@ -10,7 +10,8 @@ use super::signature::Signature;
 /// Allows for the adding/combining of multiple BLS PublicKeys.
 ///
 /// This may be used to verify some AggregateSignature.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(Debug))]
 pub struct AggregatePublicKey {
     pub point: G1Point,
 }
@@ -71,7 +72,8 @@ impl Default for AggregatePublicKey {
 /// Allows for the adding/combining of multiple BLS Signatures.
 ///
 /// This may be verified against some AggregatePublicKey.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(Debug))]
 pub struct AggregateSignature {
     pub point: G2Point,
 }
@@ -109,7 +111,14 @@ impl AggregateSignature {
         key_point.affine();
         let mut msg_hash_point = hash_on_g2(msg, d);
         msg_hash_point.affine();
-        let mut lhs = ate_pairing(sig_point.as_raw(), &GENERATORG1);
+        let mut lhs = {
+            #[cfg(feature = "std")] {
+                ate_pairing(sig_point.as_raw(), &GENERATORG1)
+            }
+            #[cfg(not(feature = "std"))] {
+                ate_pairing(sig_point.as_raw(), &amcl_utils::GroupG1::generator())
+            }
+        };
         let mut rhs = ate_pairing(&msg_hash_point, &key_point.as_raw());
         lhs.equals(&mut rhs)
     }
@@ -142,7 +151,14 @@ impl AggregateSignature {
             }
         }
 
-        let mut rhs = ate_pairing(sig_point.as_raw(), &GENERATORG1);
+        let mut rhs = {
+            #[cfg(feature = "std")] {
+                ate_pairing(sig_point.as_raw(), &GENERATORG1)
+            }
+            #[cfg(not(feature = "std"))] {
+                ate_pairing(sig_point.as_raw(), &amcl_utils::GroupG1::generator())
+            }
+        };
         lhs.equals(&mut rhs)
     }
 

@@ -1,10 +1,12 @@
 extern crate amcl;
 extern crate rand;
 
-use super::amcl_utils::{BigNum, GroupG1, CURVE_ORDER, GENERATORG1, MOD_BYTE_SIZE};
+use super::amcl_utils::{self, BigNum, GroupG1, CURVE_ORDER, MOD_BYTE_SIZE};
 use super::errors::DecodeError;
 use super::g1::G1Point;
 use super::rng::get_seeded_rng;
+use rand::Rng;
+#[cfg(feature = "std")]
 use std::fmt;
 
 #[derive(Clone)]
@@ -14,9 +16,9 @@ pub struct SecretKey {
 }
 
 impl SecretKey {
-    /// Generate a new SecretKey using `rand::thread_rng` to seed the `amcl::rand::RAND` PRNG.
-    pub fn random() -> Self {
-        let mut r = get_seeded_rng(256);
+    /// Generate a new SecretKey using an Rng to seed the `amcl::rand::RAND` PRNG.
+    pub fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        let mut r = get_seeded_rng(rng, 256);
         let x = BigNum::randomnum(&BigNum::new_ints(&CURVE_ORDER), &mut r);
         SecretKey { x }
     }
@@ -40,6 +42,7 @@ impl SecretKey {
     }
 }
 
+#[cfg(feature = "std")]
 impl fmt::Debug for SecretKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut temp = BigNum::new();
@@ -57,7 +60,8 @@ impl PartialEq for SecretKey {
 impl Eq for SecretKey {}
 
 /// A BLS public key.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(Debug))]
 pub struct PublicKey {
     pub point: G1Point,
 }
@@ -66,7 +70,14 @@ impl PublicKey {
     /// Instantiate a PublicKey from some SecretKey.
     pub fn from_secret_key(sk: &SecretKey) -> Self {
         PublicKey {
-            point: G1Point::from_raw(GENERATORG1.mul(&sk.x)),
+            point: {
+                #[cfg(feature = "std")] {
+                    G1Point::from_raw(GENERATORG1.mul(&sk.x))
+                }
+                #[cfg(not(feature = "std"))] {
+                    G1Point::from_raw(amcl_utils::GroupG1::generator().mul(&sk.x))
+                }
+            },
         }
     }
 
@@ -134,7 +145,8 @@ impl PublicKey {
 }
 
 /// A helper which stores a BLS public and private key pair.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(Debug))]
 pub struct Keypair {
     pub sk: SecretKey,
     pub pk: PublicKey,
@@ -142,8 +154,8 @@ pub struct Keypair {
 
 impl Keypair {
     /// Instantiate a Keypair using SecretKey::random().
-    pub fn random() -> Self {
-        let sk = SecretKey::random();
+    pub fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
+        let sk = SecretKey::random(rng);
         let pk = PublicKey::from_secret_key(&sk);
         Keypair { sk, pk }
     }

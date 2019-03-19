@@ -17,7 +17,9 @@ specific language governing permissions and limitations
 under the License.
 */
 
+#[cfg(feature = "std")]
 use std::time::{SystemTime};
+#[cfg(feature = "std")]
 use std::time::UNIX_EPOCH;
 
 use bls381::ecp;
@@ -145,6 +147,7 @@ fn hashit(sha: usize,n: usize,id: &[u8],w: &mut [u8]) -> bool {
 	return true;
 }
 
+#[cfg(feature = "std")]
 /* return time in slots since epoch */
 pub fn today() -> usize {
   	return (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()/(60*1440)) as usize;
@@ -536,6 +539,7 @@ pub fn client_2(x: &[u8],y: &[u8],sec: &mut [u8]) -> isize {
 	return 0;
 }
 
+#[cfg(feature = "std")]
 /* return time since epoch */
 pub fn get_time() -> usize {
   	return (SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()) as usize;	

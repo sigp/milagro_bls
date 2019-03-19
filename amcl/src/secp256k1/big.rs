@@ -275,6 +275,7 @@ impl BIG {
 		return bts;
 	}
 
+    #[cfg(feature = "std")]
 /* Convert to Hex String */
 	pub fn tostring(&mut self) -> String {
 		let mut s = String::new();

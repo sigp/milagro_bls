@@ -391,6 +391,7 @@ impl ECP {
 		return ECP::new()
 	}
 
+    #[cfg(feature = "std")]
 /* convert to hex string */
 	pub fn tostring(&mut self) -> String {
 	 	if self.is_infinity() {self.inf(); return String::from("infinity")}

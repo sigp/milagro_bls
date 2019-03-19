@@ -176,6 +176,7 @@ impl FP {
         return BIG::new();
     }
 
+    #[cfg(feature = "std")]
    /* convert to string */
 	pub fn tostring(&mut self) -> String {
         let s=self.redc().tostring();
