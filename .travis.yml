@@ -3,6 +3,10 @@ script:
   - cargo build --verbose --all
   - cargo test --verbose --all
   - cargo fmt --all -- --check
+  - |
+    if [[ "$TRAVIS_RUST_VERSION" == nightly* ]]; then
+      cargo build --no-default-features
+    fi
 rust:
   - stable
   - beta
