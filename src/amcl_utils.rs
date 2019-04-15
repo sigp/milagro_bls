@@ -255,14 +255,13 @@ pub fn sw_encoding_g1(t: &mut FP) -> GroupG1 {
     w.mul(&sqrt_n3);
 
     // x1 = (-1 + sqrt(-3)) / 2 - tw
-    let mut x1 = sqrt_n3;
+    let mut x1 = sqrt_n3.clone();
     x1.sub(&fp_one);
+    x1.norm();
     x1.div2();
     let mut tw = t.clone();
     tw.mul(&w);
-    tw.reduce();
     x1.sub(&tw);
-    println!("{:?}", x1.tostring());
 
     // OPTIMIZATION: Check if x1 is valid here and return.
 
@@ -270,7 +269,6 @@ pub fn sw_encoding_g1(t: &mut FP) -> GroupG1 {
     let mut x2 = x1.clone();
     x2.neg();
     x2.sub(&fp_one);
-    println!("{:?}", x2.tostring());
 
     // OPTIMIZATION: Check if x2 is valid here and return.
 
@@ -279,14 +277,13 @@ pub fn sw_encoding_g1(t: &mut FP) -> GroupG1 {
     x3.sqr();
     x3.inverse();
     x3.add(&fp_one);
-    println!("{:?}", x3.tostring());
 
     // Take first valid point of x1, x2, x3
-    let mut curve_point = GroupG1::new_big(&x1.x);
+    let mut curve_point = GroupG1::new_big(&x1.redc());
     if curve_point.is_infinity() {
-        curve_point = GroupG1::new_big(&x2.x);
+        curve_point = GroupG1::new_big(&x2.redc());
         if curve_point.is_infinity() {
-            curve_point = GroupG1::new_big(&x3.x);
+            curve_point = GroupG1::new_big(&x3.redc());
         }
     }
 
@@ -759,5 +756,26 @@ mod tests {
             println!("{:?}", i);
             assert!(!fouque_tibouchi_g1(&msg, i).is_infinity());
         }
+    }
+
+    #[test]
+    fn chia_comparison() {
+        let msg = vec![1 as u8; 32];
+        let domain = 112 as u64;
+        let mut t0 = hash512(&[msg.as_slice(), &domain.to_be_bytes(), &[1]].concat());
+        let mut t1 = hash512(&[msg.as_slice(), &domain.to_be_bytes(), &[2]].concat());
+
+        // Convert hashes to Fp
+        let mut t0 = BigNum::frombytes(&t0);
+        let mut t1 = BigNum::frombytes(&t1);
+        let mut t0 = FP::new_big(&t0);
+        let mut t1 = FP::new_big(&t1);
+
+        println!("{:?}", t0.tostring());
+        println!("{:?}", t1.tostring());
+        let mut t0 = sw_encoding_g1(&mut t0);
+        let mut t1 = sw_encoding_g1(&mut t1);
+        println!("{:?}", t0.tostring());
+        println!("{:?}", t1.tostring());
     }
 }
