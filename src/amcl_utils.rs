@@ -12,12 +12,15 @@ use BLSCurve::ecp::ECP;
 use BLSCurve::ecp2::ECP2;
 use BLSCurve::fp12::FP12 as bls381_FP12;
 use BLSCurve::fp2::FP2 as bls381_FP2;
+use BLSCurve::fp::FP as bls381_FP;
 use BLSCurve::pair::{ate, fexp};
 use BLSCurve::rom;
 
 pub type BigNum = BIG;
 pub type GroupG1 = ECP;
 pub type GroupG2 = ECP2;
+
+pub type FP = bls381_FP;
 pub type FP2 = bls381_FP2;
 pub type FP12 = bls381_FP12;
 
@@ -68,45 +71,85 @@ lazy_static! {
 }
 
 // Take given message and domain and convert it to GroupG2 point
-pub fn hash_on_g2(msg: &[u8], d: u64) -> GroupG2 {
-    // Converting to BigNum requires 48 bytes, Keccak256 is only 32 bytes
-    let mut x_real = vec![0 as u8; 16];
-    x_real.append(&mut hash(&[msg, &d.to_be_bytes(), &[1]].concat()));
-    let mut x_imaginary = vec![0 as u8; 16];
-    x_imaginary.append(&mut hash(&[msg, &d.to_be_bytes(), &[2]].concat()));
-
-    map_to_g2(&x_real, &x_imaginary)
+pub fn hash_on_g2(msg: &[u8], domain: u64) -> GroupG2 {
+    // This is a wrapper to easily change implementation if we switch hashing methods
+    hash_and_test_g2(msg, domain)
 }
 
-// Convert x real and imaginary parts to GroupG2 point
-#[allow(non_snake_case)]
-pub fn map_to_g2(x_real: &[u8], x_imaginary: &[u8]) -> GroupG2 {
-    // Convery Hashes to BigNums mod q
+// Use hash-and-test method to convert a hash to a G1 point
+pub fn hash_and_test_g1(msg: &[u8], domain: u64) -> GroupG1 {
+    // Counter for incrementing the pre-hash messages
+    let mut counter = 0 as u8;
+    let mut curve_point: GroupG1;
     let q = BigNum::new_ints(&rom::MODULUS);
-    let mut x_real = BigNum::frombytes(x_real);
-    let mut x_imaginary = BigNum::frombytes(x_imaginary);
-    x_real.rmod(&q);
-    x_imaginary.rmod(&q);
-    let mut x = FP2::new_bigs(&x_real, &x_imaginary);
 
-    let mut one = FP2::new();
-    one.one();
+    // Continue to increment pre-hash message until valid x coordinate is found
+    loop {
+        // Hash (message, domain, counter) for x coordinate
+        let mut x = vec![0 as u8; 16];
+        x.append(&mut hash(&[msg, &domain.to_be_bytes(), &[counter]].concat()));
 
+        // Convert Hashes to BigNums mod q
+        let mut x = BigNum::frombytes(&x);
+        x.rmod(&q);
+
+        curve_point = GroupG1::new_big(&x);
+
+        if !curve_point.is_infinity() {
+            break;
+        }
+
+        counter += 1;
+    }
+
+    // Take larger of two y values
+    let y = curve_point.gety();
+    let mut neg_y = curve_point.gety();
+    neg_y = BigNum::modneg(&mut neg_y, &q);
+    if BigNum::comp(&y, &neg_y) < 0 {
+        curve_point.neg();
+    }
+
+    // Multiply the point by given G1_Cofactor
+    curve_point.cfp(); // TODO: ensure this is correct G1 cofactor
+    curve_point
+}
+
+// Use hash-and-test method to convert a Hash to a G2 point
+#[allow(non_snake_case)]
+pub fn hash_and_test_g2(msg: &[u8], domain: u64) -> GroupG2 {
+    // Counter for incrementing the pre-hash messages
+    let mut real_counter = 1 as u8;
+    let mut imaginary_counter = 2 as u8;
     let mut curve_point: GroupG2;
 
-    // Continue to increment x until valid y is found
+    // Continue to increment pre-hash message until valid x coordinate is found
     loop {
+        // Hash (message, domain, counter) for x-real and x-imaginary
+        let mut x_real = vec![0 as u8; 16];
+        x_real.append(&mut hash(&[msg, &domain.to_be_bytes(), &[real_counter]].concat()));
+        let mut x_imaginary = vec![0 as u8; 16];
+        x_imaginary.append(&mut hash(&[msg, &domain.to_be_bytes(), &[imaginary_counter]].concat()));
+
+        // Convert Hashes to Fp2
+        let q = BigNum::new_ints(&rom::MODULUS);
+        let mut x_real = BigNum::frombytes(&x_real);
+        let mut x_imaginary = BigNum::frombytes(&x_imaginary);
+        let mut x = FP2::new_bigs(&x_real, &x_imaginary);
+
         x.norm();
         curve_point = GroupG2::new_fp2(&x);
 
         if !curve_point.is_infinity() {
             break;
         }
-        x.add(&one);
+
+        real_counter += 1;
+        imaginary_counter += 1;
     }
 
     // Take larger of two y values
-    let mut y = curve_point.getpy(); // makes a copy
+    let mut y = curve_point.getpy();
     let mut neg_y = curve_point.getpy();
     neg_y.neg();
     if cmp_fp2(&mut y, &mut neg_y) < 0 {
@@ -114,7 +157,7 @@ pub fn map_to_g2(x_real: &[u8], x_imaginary: &[u8]) -> GroupG2 {
     }
 
     // Multiply the point by given G2_Cofactor
-    multiply_cofactor(&mut curve_point)
+    multiply_g2_cofactor(&mut curve_point)
 }
 
 // Compare values of two FP2 elements,
@@ -125,7 +168,7 @@ pub fn cmp_fp2(num1: &mut FP2, num2: &mut FP2) -> isize {
     let num2_b = num2.getb();
     let mut result = BigNum::comp(&num1_b, &num2_b);
 
-    // If FP2.b is equal compare FP2.a
+    // If FP2.b is equal compare FP2.b
     if result == 0 {
         let num1_a = num1.geta();
         let num2_a = num2.geta();
@@ -135,7 +178,7 @@ pub fn cmp_fp2(num1: &mut FP2, num2: &mut FP2) -> isize {
 }
 
 // Multiply in parts by cofactor due to its size.
-pub fn multiply_cofactor(curve_point: &mut GroupG2) -> GroupG2 {
+pub fn multiply_g2_cofactor(curve_point: &mut GroupG2) -> GroupG2 {
     // Replicate curve_point for low part of multiplication
     let mut lowpart = GroupG2::new();
     lowpart.copy(&curve_point);
@@ -153,11 +196,127 @@ pub fn multiply_cofactor(curve_point: &mut GroupG2) -> GroupG2 {
     curve_point
 }
 
+// Fouque Tibouchi G1
+pub fn fouque_tibouchi_g1(msg: &[u8], domain: u64) -> GroupG1 {
+    let q = BigNum::new_ints(&rom::MODULUS);
+
+    // Hash (message, domain) for x coordinate
+    let mut t0 = hash512(&[msg, &domain.to_be_bytes(), &[1]].concat());
+    let mut t1 = hash512(&[msg, &domain.to_be_bytes(), &[2]].concat());
+
+    // Convert hashes to Fp
+    let mut t0 = BigNum::frombytes(&t0);
+    let mut t1 = BigNum::frombytes(&t1);
+    let mut t0 = FP::new_big(&t0);
+    let mut t1 = FP::new_big(&t1);
+
+    // Encode to G1
+    let mut t0 = sw_encoding_g1(&mut t0);
+    let t1 = sw_encoding_g1(&mut t1);
+
+    // t0 = t0 + t1
+    t0.add(&t1);
+    t0.cfp(); // TODO ensure this multiplies by cofactor correctly
+    t0
+}
+
+// Shallue-van de Woestijne encoding
+pub fn sw_encoding_g1(t: &mut FP) -> GroupG1 {
+    // Map zero hash to point at infinity
+    if t.iszilch() {
+        return GroupG1::new();
+    }
+
+    // Parity to avoid negation collisions
+    let mut neg_t = t.clone();
+    neg_t.neg();
+    let parity = BigNum::comp(&t.x, &neg_t.x);
+
+    let fp_one = FP::new_int(1);
+
+    // w = t
+    let mut w = t.clone();
+    // w = t^2
+    w.sqr();
+    // w = t^2 + b
+    w.add(&FP::new_int(rom::CURVE_B_I));
+    // w = t^2 + b + 1
+    w.add(&fp_one);
+    // w = 1 / (t^2 + b + 1)
+    w.inverse();
+    // w = t / (t^2 + b + 1)
+    w.mul(&t);
+    // sqrt(-3)
+    // OPTIMIZE: This should probably be added as a global const
+    let mut sqrt_n3 = FP::new_int(-3);
+    sqrt_n3 = sqrt_n3.sqrt();
+
+    // w = sqrt(-3) * t / (t^2 + b + 1)
+    w.mul(&sqrt_n3);
+
+    // x1 = (-1 + sqrt(-3)) / 2 - tw
+    let mut x1 = sqrt_n3;
+    x1.sub(&fp_one);
+    x1.div2();
+    let mut tw = t.clone();
+    tw.mul(&w);
+    tw.reduce();
+    x1.sub(&tw);
+    println!("{:?}", x1.tostring());
+
+    // OPTIMIZATION: Check if x1 is valid here and return.
+
+    // x2 = -1 - x1
+    let mut x2 = x1.clone();
+    x2.neg();
+    x2.sub(&fp_one);
+    println!("{:?}", x2.tostring());
+
+    // OPTIMIZATION: Check if x2 is valid here and return.
+
+    // x3 = 1 + 1 / w^2
+    let mut x3 = w.clone();
+    x3.sqr();
+    x3.inverse();
+    x3.add(&fp_one);
+    println!("{:?}", x3.tostring());
+
+    // Take first valid point of x1, x2, x3
+    let mut curve_point = GroupG1::new_big(&x1.x);
+    if curve_point.is_infinity() {
+        curve_point = GroupG1::new_big(&x2.x);
+        if curve_point.is_infinity() {
+            curve_point = GroupG1::new_big(&x3.x);
+        }
+    }
+
+    // Ensure if t > -t then y > -y && if t < -t then y < -y
+    let y = curve_point.getpy();
+    let mut neg_y = y.clone();
+    neg_y.neg();
+    let parity_2 = BigNum::comp(&y.x, &neg_y.x);
+    if (parity < 0 && parity_2 > 0) || (parity > 0 && parity_2 < 0) {
+        curve_point.neg();
+    }
+
+    curve_point
+}
+
+
 // Provides a Keccak256 hash of given input.
 pub fn hash(input: &[u8]) -> Vec<u8> {
     let mut keccak = Keccak::new_keccak256();
     keccak.update(input);
     let mut result = vec![0; 32];
+    keccak.finalize(result.as_mut_slice());
+    result
+}
+
+// Provides a Keccak512 hash of given input.
+pub fn hash512(input: &[u8]) -> Vec<u8> {
+    let mut keccak = Keccak::new_keccak512();
+    keccak.update(input);
+    let mut result = vec![0; 64];
     keccak.finalize(result.as_mut_slice());
     result
 }
@@ -571,6 +730,34 @@ mod tests {
             a.append(&mut b);
 
             assert_eq!(a, compress_g2(&mut result));
+        }
+    }
+
+    #[test]
+    fn test_hash_and_test_g1() {
+        let msg = [1 as u8; 32];
+
+        for i in 0..100 {
+            assert!(!hash_and_test_g1(&msg, i).is_infinity());
+        }
+    }
+
+    #[test]
+    fn test_hash_and_test_g2() {
+        let msg = [1 as u8; 32];
+
+        for i in 0..100 {
+            assert!(!hash_and_test_g2(&msg, i).is_infinity());
+        }
+    }
+
+    #[test]
+    fn test_fouque_tibouchi_g1() {
+        let msg = [1 as u8; 32];
+
+        for i in 0..10000 {
+            println!("{:?}", i);
+            assert!(!fouque_tibouchi_g1(&msg, i).is_infinity());
         }
     }
 }

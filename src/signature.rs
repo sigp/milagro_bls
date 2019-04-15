@@ -1,6 +1,6 @@
 extern crate amcl;
 
-use super::amcl_utils::{ate_pairing, hash_on_g2, map_to_g2, GENERATORG1};
+use super::amcl_utils::{ate_pairing, hash_on_g2, GENERATORG1};
 use super::errors::DecodeError;
 use super::g2::G2Point;
 use super::keys::{PublicKey, SecretKey};
@@ -21,42 +21,12 @@ impl Signature {
         }
     }
 
-    /// Instantiate a new Signature from a message and a SecretKey, where the message has already
-    /// been hashed.
-    pub fn new_hashed(msg_hash_real: &[u8], msg_hash_imaginary: &[u8], sk: &SecretKey) -> Self {
-        let hash_point = map_to_g2(msg_hash_real, msg_hash_imaginary);
-        let mut sig = hash_point.mul(&sk.x);
-        sig.affine();
-        Self {
-            point: G2Point::from_raw(sig),
-        }
-    }
-
     /// Verify the Signature against a PublicKey.
     ///
     /// In theory, should only return true if the PublicKey matches the SecretKey used to
     /// instantiate the Signature.
     pub fn verify(&self, msg: &[u8], d: u64, pk: &PublicKey) -> bool {
         let mut msg_hash_point = hash_on_g2(msg, d);
-        msg_hash_point.affine();
-        let mut lhs = ate_pairing(self.point.as_raw(), &GENERATORG1);
-        let mut rhs = ate_pairing(&msg_hash_point, &pk.point.as_raw());
-        lhs.equals(&mut rhs)
-    }
-
-    /// Verify the Signature against a PublicKey, where the message has already been hashed.
-    ///
-    /// The supplied hashes will be mapped to G2.
-    ///
-    /// In theory, should only return true if the PublicKey matches the SecretKey used to
-    /// instantiate the Signature.
-    pub fn verify_hashed(
-        &self,
-        msg_hash_real: &[u8],
-        msg_hash_imaginary: &[u8],
-        pk: &PublicKey,
-    ) -> bool {
-        let mut msg_hash_point = map_to_g2(msg_hash_real, msg_hash_imaginary);
         msg_hash_point.affine();
         let mut lhs = ate_pairing(self.point.as_raw(), &GENERATORG1);
         let mut rhs = ate_pairing(&msg_hash_point, &pk.point.as_raw());
