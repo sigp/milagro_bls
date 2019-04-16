@@ -9,6 +9,10 @@ license = "MIT/Apache-2.0"
 name = "bls381_benches"
 harness = false
 
+[[bench]]
+name = "bls381_map_to_curve_benches"
+harness = false
+
 [dependencies]
 amcl = { path = "./amcl" }
 criterion = "0.2"
