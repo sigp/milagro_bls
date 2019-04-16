@@ -317,9 +317,6 @@ pub fn fouque_tibouchi_g2(msg: &[u8], domain: u64) -> GroupG2 {
     let mut t0 = FP2::new_bigs(&t00, &t01);
     let mut t1 = FP2::new_bigs(&t10, &t11);
 
-    println!("t0 {:?}", t0.tostring());
-    println!("t1 {:?}", t1.tostring());
-
     // Encode to G1
     let mut t0 = sw_encoding_g2(&mut t0);
     let t1 = sw_encoding_g2(&mut t1);
@@ -350,7 +347,8 @@ pub fn sw_encoding_g2(t: &mut FP2) -> GroupG2 {
     // w = t^2
     w.sqr();
     // w = t^2 + b
-    w.add(&FP2::new_int(rom::CURVE_B_I));
+    let fp_b = FP::new_int(rom::CURVE_B_I);
+    w.add(&FP2::new_fps(&fp_b, &fp_b));
     // w = t^2 + b + 1
     w.add(&fp2_one);
     // w = 1 / (t^2 + b + 1)
@@ -389,16 +387,12 @@ pub fn sw_encoding_g2(t: &mut FP2) -> GroupG2 {
     x3.inverse();
     x3.add(&fp2_one);
 
-    //println!("x1 is {:?}", x1.tostring());
-    //println!("x2 is {:?}", x2.tostring());
-    //println!("x3 is {:?}", x3.tostring());
-
     // Take first valid point of x1, x2, x3
-    let mut curve_point = GroupG2::new_fp2s(&x1, &calculate_y(&x1));
+    let mut curve_point = GroupG2::new_fp2(&x1);
     if curve_point.is_infinity() {
-        curve_point = GroupG2::new_fp2s(&x2, &calculate_y(&x2));
+        curve_point = GroupG2::new_fp2(&x2);
         if curve_point.is_infinity() {
-            curve_point = GroupG2::new_fp2s(&x3, &calculate_y(&x3));
+            curve_point = GroupG2::new_fp2(&x3);
         }
     }
 
@@ -412,24 +406,7 @@ pub fn sw_encoding_g2(t: &mut FP2) -> GroupG2 {
         curve_point.neg();
     }
 
-    println!("ret is {:?}", curve_point.tostring());
-
     curve_point
-}
-
-// Calculate y
-pub fn calculate_y(x: &FP2) -> FP2 {
-    let fp2_one = FP2::new_int(1);
-
-    let mut y = x.clone();
-    y.mul(&x);
-    y.mul(&x);
-    y.add(&fp2_one);
-    y.add(&fp2_one);
-    y.add(&fp2_one);
-    y.add(&fp2_one);
-    y.sqrt();
-    y
 }
 
 // Provides a Keccak256 hash of given input.
@@ -862,6 +839,10 @@ mod tests {
         }
     }
 
+
+    /*********************
+    * Experimental Tests *
+    **********************/
     #[test]
     fn test_hash_and_test_g1() {
         let msg = [1 as u8; 32];
@@ -894,29 +875,8 @@ mod tests {
         let msg = [1 as u8; 32];
 
         for i in 0..100 {
-            println!("{:?}", i);
-            assert!(!fouque_tibouchi_g2(&msg, i).is_infinity());
+            let mut point = fouque_tibouchi_g2(&msg, i);
+            assert!(!point.is_infinity());
         }
-    }
-
-    #[test]
-    fn chia_comparison() {
-        let msg = vec![1 as u8; 32];
-        let domain = 112 as u64;
-        let mut t0 = hash512(&[msg.as_slice(), &domain.to_be_bytes(), &[1]].concat());
-        let mut t1 = hash512(&[msg.as_slice(), &domain.to_be_bytes(), &[2]].concat());
-
-        // Convert hashes to Fp
-        let mut t0 = BigNum::frombytes(&t0);
-        let mut t1 = BigNum::frombytes(&t1);
-        let mut t0 = FP::new_big(&t0);
-        let mut t1 = FP::new_big(&t1);
-
-        println!("{:?}", t0.tostring());
-        println!("{:?}", t1.tostring());
-        let mut t0 = sw_encoding_g1(&mut t0);
-        let mut t1 = sw_encoding_g1(&mut t1);
-        println!("{:?}", t0.tostring());
-        println!("{:?}", t1.tostring());
     }
 }
