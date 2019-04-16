@@ -299,6 +299,138 @@ pub fn sw_encoding_g1(t: &mut FP) -> GroupG1 {
     curve_point
 }
 
+// Fouque Tibouchi G2
+pub fn fouque_tibouchi_g2(msg: &[u8], domain: u64) -> GroupG2 {
+    let q = BigNum::new_ints(&rom::MODULUS);
+
+    // Hash (message, domain) for x coordinate
+    let mut t00 = hash512(&[msg, &domain.to_be_bytes(), &[10]].concat());
+    let mut t01 = hash512(&[msg, &domain.to_be_bytes(), &[11]].concat());
+    let mut t10 = hash512(&[msg, &domain.to_be_bytes(), &[20]].concat());
+    let mut t11 = hash512(&[msg, &domain.to_be_bytes(), &[21]].concat());
+
+    // Convert hashes to Fp
+    let mut t00 = BigNum::frombytes(&t00);
+    let mut t01 = BigNum::frombytes(&t01);
+    let mut t10 = BigNum::frombytes(&t10);
+    let mut t11 = BigNum::frombytes(&t11);
+    let mut t0 = FP2::new_bigs(&t00, &t01);
+    let mut t1 = FP2::new_bigs(&t10, &t11);
+
+    println!("t0 {:?}", t0.tostring());
+    println!("t1 {:?}", t1.tostring());
+
+    // Encode to G1
+    let mut t0 = sw_encoding_g2(&mut t0);
+    let t1 = sw_encoding_g2(&mut t1);
+
+    // t0 = t0 + t1
+    t0.add(&t1);
+
+    multiply_g2_cofactor(&mut t0)
+}
+
+// Shallue-van de Woestijne encoding
+pub fn sw_encoding_g2(t: &mut FP2) -> GroupG2 {
+    // Map zero hash to point at infinity
+    if t.iszilch() {
+        return GroupG2::new();
+    }
+
+    // OPTIMIZATIONS: Remove the clones()
+    // Parity to avoid negation collisions
+    let mut neg_t = t.clone();
+    neg_t.neg();
+    let parity = BigNum::comp(&t.getb(), &mut neg_t.getb());
+
+    let fp2_one = FP2::new_int(1);
+
+    // w = t
+    let mut w = t.clone();
+    // w = t^2
+    w.sqr();
+    // w = t^2 + b
+    w.add(&FP2::new_int(rom::CURVE_B_I));
+    // w = t^2 + b + 1
+    w.add(&fp2_one);
+    // w = 1 / (t^2 + b + 1)
+    w.inverse();
+    // w = t / (t^2 + b + 1)
+    w.mul(&t);
+    // sqrt(-3)
+    // OPTIMIZE: This should probably be added as a global const
+    let mut sqrt_n3 = FP::new_int(-3);
+    sqrt_n3 = sqrt_n3.sqrt(); // TODO: This maybe should be fp2
+
+    // w = sqrt(-3) * t / (t^2 + b + 1)
+    w.pmul(&sqrt_n3);
+
+    // x1 = (-1 + sqrt(-3)) / 2 - tw
+    let mut x1 = FP2::new_fp(&sqrt_n3);
+    x1.sub(&fp2_one);
+    x1.norm();
+    x1.div2();
+    let mut tw = t.clone();
+    tw.mul(&w);
+    x1.sub(&tw);
+
+    // OPTIMIZATION: Check if x1 is valid here and return.
+
+    // x2 = -1 - x1
+    let mut x2 = x1.clone();
+    x2.neg();
+    x2.sub(&fp2_one);
+
+    // OPTIMIZATION: Check if x2 is valid here and return.
+
+    // x3 = 1 + 1 / w^2
+    let mut x3 = w.clone();
+    x3.sqr();
+    x3.inverse();
+    x3.add(&fp2_one);
+
+    //println!("x1 is {:?}", x1.tostring());
+    //println!("x2 is {:?}", x2.tostring());
+    //println!("x3 is {:?}", x3.tostring());
+
+    // Take first valid point of x1, x2, x3
+    let mut curve_point = GroupG2::new_fp2s(&x1, &calculate_y(&x1));
+    if curve_point.is_infinity() {
+        curve_point = GroupG2::new_fp2s(&x2, &calculate_y(&x2));
+        if curve_point.is_infinity() {
+            curve_point = GroupG2::new_fp2s(&x3, &calculate_y(&x3));
+        }
+    }
+
+
+    // Ensure if t > -t then y > -y && if t < -t then y < -y
+    let mut y = curve_point.gety();
+    let mut neg_y = y.clone();
+    neg_y.neg();
+    let parity_2 = BigNum::comp(&y.getb(), &neg_y.getb());
+    if (parity < 0 && parity_2 > 0) || (parity > 0 && parity_2 < 0) {
+        curve_point.neg();
+    }
+
+    println!("ret is {:?}", curve_point.tostring());
+
+    curve_point
+}
+
+// Calculate y
+pub fn calculate_y(x: &FP2) -> FP2 {
+    let fp2_one = FP2::new_int(1);
+
+    let mut y = x.clone();
+    y.mul(&x);
+    y.mul(&x);
+    y.add(&fp2_one);
+    y.add(&fp2_one);
+    y.add(&fp2_one);
+    y.add(&fp2_one);
+    y.sqrt();
+    y
+}
 
 // Provides a Keccak256 hash of given input.
 pub fn hash(input: &[u8]) -> Vec<u8> {
@@ -752,9 +884,18 @@ mod tests {
     fn test_fouque_tibouchi_g1() {
         let msg = [1 as u8; 32];
 
-        for i in 0..10000 {
-            println!("{:?}", i);
+        for i in 0..100 {
             assert!(!fouque_tibouchi_g1(&msg, i).is_infinity());
+        }
+    }
+
+    #[test]
+    fn test_fouque_tibouchi_g2() {
+        let msg = [1 as u8; 32];
+
+        for i in 0..100 {
+            println!("{:?}", i);
+            assert!(!fouque_tibouchi_g2(&msg, i).is_infinity());
         }
     }
 
