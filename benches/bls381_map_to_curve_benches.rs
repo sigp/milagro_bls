@@ -38,6 +38,18 @@ fn g1(c: &mut Criterion) {
         })
         .sample_size(10),
     );
+
+    c.bench(
+        "hash_to_g1",
+        Benchmark::new("Fouque Tibouchi Twice x100", move |b| {
+            b.iter(|| {
+                for i in 0..100 {
+                    black_box(fouque_tibouchi_twice_g1(&msg, i));
+                }
+            })
+        })
+        .sample_size(10),
+    );
 }
 
 fn g2(c: &mut Criterion) {
@@ -61,6 +73,18 @@ fn g2(c: &mut Criterion) {
             b.iter(|| {
                 for i in 0..100 {
                     black_box(fouque_tibouchi_g2(&msg, i));
+                }
+            })
+        })
+        .sample_size(10),
+    );
+
+    c.bench(
+        "hash_to_g2",
+        Benchmark::new("Fouque Tibouchi Twice x100", move |b| {
+            b.iter(|| {
+                for i in 0..100 {
+                    black_box(fouque_tibouchi_twice_g2(&msg, i));
                 }
             })
         })

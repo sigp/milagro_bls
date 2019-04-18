@@ -197,7 +197,7 @@ pub fn multiply_g2_cofactor(curve_point: &mut GroupG2) -> GroupG2 {
 }
 
 // Fouque Tibouchi G1
-pub fn fouque_tibouchi_g1(msg: &[u8], domain: u64) -> GroupG1 {
+pub fn fouque_tibouchi_twice_g1(msg: &[u8], domain: u64) -> GroupG1 {
     let q = BigNum::new_ints(&rom::MODULUS);
 
     // Hash (message, domain) for x coordinate
@@ -217,6 +217,26 @@ pub fn fouque_tibouchi_g1(msg: &[u8], domain: u64) -> GroupG1 {
     // t0 = t0 + t1
     t0.add(&t1);
     t0.cfp(); // TODO ensure this multiplies by cofactor correctly
+    t0
+}
+
+// Fouque Tibouchi twice and adds the result on G1
+pub fn fouque_tibouchi_g1(msg: &[u8], domain: u64) -> GroupG1 {
+    let q = BigNum::new_ints(&rom::MODULUS);
+
+    // Hash (message, domain) for x coordinate
+    let mut t0 = hash512(&[msg, &domain.to_be_bytes(), &[1]].concat());
+
+    // Convert hashes to Fp
+    let mut t0 = BigNum::frombytes(&t0);
+    let mut t0 = FP::new_big(&t0);
+
+    // Encode to G1
+    let mut t0 = sw_encoding_g1(&mut t0);
+
+    // Multiplies by G1 cofactor
+    t0.cfp();
+
     t0
 }
 
@@ -299,8 +319,8 @@ pub fn sw_encoding_g1(t: &mut FP) -> GroupG1 {
     curve_point
 }
 
-// Fouque Tibouchi G2
-pub fn fouque_tibouchi_g2(msg: &[u8], domain: u64) -> GroupG2 {
+// Fouque Tibouchi Twice and add results on G2
+pub fn fouque_tibouchi_twice_g2(msg: &[u8], domain: u64) -> GroupG2 {
     let q = BigNum::new_ints(&rom::MODULUS);
 
     // Hash (message, domain) for x coordinate
@@ -323,6 +343,25 @@ pub fn fouque_tibouchi_g2(msg: &[u8], domain: u64) -> GroupG2 {
 
     // t0 = t0 + t1
     t0.add(&t1);
+
+    multiply_g2_cofactor(&mut t0)
+}
+
+// Fouque Tibouchi G2
+pub fn fouque_tibouchi_g2(msg: &[u8], domain: u64) -> GroupG2 {
+    let q = BigNum::new_ints(&rom::MODULUS);
+
+    // Hash (message, domain) for x coordinate
+    let mut t00 = hash512(&[msg, &domain.to_be_bytes(), &[10]].concat());
+    let mut t01 = hash512(&[msg, &domain.to_be_bytes(), &[11]].concat());
+
+    // Convert hashes to Fp
+    let mut t00 = BigNum::frombytes(&t00);
+    let mut t01 = BigNum::frombytes(&t01);
+    let mut t0 = FP2::new_bigs(&t00, &t01);
+
+    // Encode to G1
+    let mut t0 = sw_encoding_g2(&mut t0);
 
     multiply_g2_cofactor(&mut t0)
 }
