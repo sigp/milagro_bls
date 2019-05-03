@@ -68,96 +68,85 @@ pub const G2_COFACTOR_SHIFT: [Chunk; NLEN] = [
 lazy_static! {
     pub static ref GENERATORG1: GroupG1 = GroupG1::generator();
     pub static ref GENERATORG2: GroupG2 = GroupG2::generator();
+
+    pub static ref ISO3_A2: FP2 = FP2::new_ints(0, 240);
+    pub static ref ISO3_B2: FP2 = FP2::new_ints(1012, 1012);
+    pub static ref ISO3_E2: FP2 = FP2::new_ints(1, 1);
+
+    // Roots of unity and eta
+    pub static ref SQRT_1: FP = FP::new_big(&BIG::frombytes(&hex::decode("6af0e0437ff400b6831e36d6bd17ffe48395dabc2d3435e77f76e17009241c5ee67992f72ec05f4c81084fbede3cc09").unwrap()));
+    pub static ref EV1: FP = FP::new_big(&BIG::frombytes(&hex::decode("02c4a7244a026bd3e305cc456ad9e235ed85f8b53954258ec8186bb3d4eccef7c4ee7b8d4b9e063a6c88d0aa3e03ba01").unwrap()));
+    pub static ref EV2: FP = FP::new_big(&BIG::frombytes(&hex::decode("085fa8cd9105715e641892a0f9a4bb2912b58b8d32f26594c60679cc7973076dc6638358daf3514d6426a813ae01f51a").unwrap()));
+
+    // ISO-3 Mapping values
+    pub static ref XNUM: [FP2; 4] = [
+        FP2::new_bigs(
+            &BIG::frombytes(&hex::decode("5c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97d6").unwrap()),
+            &BIG::frombytes(&hex::decode("5c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97d6").unwrap())
+        ),
+        FP2::new_bigs(
+            &BIG::new(),
+            &BIG::frombytes(&hex::decode("11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71a").unwrap())
+        ),
+        FP2::new_bigs(
+            &BIG::frombytes(&hex::decode("11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71a").unwrap()),
+            &BIG::frombytes(&hex::decode("8ab05f8bdd54cde190937e76bc3e447cc27c3d6fbd7063fcd104635a790520c0a395554e5c6aaaa9354ffffffffe38d").unwrap())
+        ),
+        FP2::new_bigs(
+            &BIG::frombytes(&hex::decode("171d6541fa38ccfaed6dea691f5fb614cb14b4e7f4e810aa22d6108f142b85757098e38d0f671c7188e2aaaaaaaa5ed1").unwrap()),
+            &BIG::new()
+        )
+    ];
+    pub static ref XDEN: [FP2; 3] = [
+        FP2::new_bigs(
+            &BIG::new(),
+            &BIG::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa63").unwrap())
+        ),
+        FP2::new_bigs(
+            &BIG::frombytes(&hex::decode("0c").unwrap()),
+            &BIG::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa9f").unwrap())
+        ),
+        FP2::new_int(1),
+    ];
+    pub static ref YNUM: [FP2; 4] = [
+        FP2::new_bigs(
+            &BIG::frombytes(&hex::decode("1530477c7ab4113b59a4c18b076d11930f7da5d4a07f649bf54439d87d27e500fc8c25ebf8c92f6812cfc71c71c6d706").unwrap()),
+            &BIG::frombytes(&hex::decode("1530477c7ab4113b59a4c18b076d11930f7da5d4a07f649bf54439d87d27e500fc8c25ebf8c92f6812cfc71c71c6d706").unwrap())
+        ),
+        FP2::new_bigs(
+            &BIG::new(),
+            &BIG::frombytes(&hex::decode("5c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97be").unwrap())
+        ),
+        FP2::new_bigs(
+            &BIG::frombytes(&hex::decode("11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71c").unwrap()),
+            &BIG::frombytes(&hex::decode("8ab05f8bdd54cde190937e76bc3e447cc27c3d6fbd7063fcd104635a790520c0a395554e5c6aaaa9354ffffffffe38f").unwrap())
+        ),
+        FP2::new_bigs(
+            &BIG::frombytes(&hex::decode("124c9ad43b6cf79bfbf7043de3811ad0761b0f37a1e26286b0e977c69aa274524e79097a56dc4bd9e1b371c71c718b10").unwrap()),
+            &BIG::new()
+        )
+    ];
+    pub static ref YDEN: [FP2; 4] = [
+        FP2::new_bigs(
+            &BIG::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa8fb").unwrap()),
+            &BIG::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa8fb").unwrap())
+        ),
+        FP2::new_bigs(
+            &BIG::new(),
+            &BIG::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa9d3").unwrap())
+        ),
+        FP2::new_bigs(
+            &BIG::frombytes(&hex::decode("12").unwrap()),
+            &BIG::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa99").unwrap())
+        ),
+        FP2::new_int(1)
+    ];
 }
 
 // Take given message and domain and convert it to GroupG2 point
 pub fn hash_on_g2(msg: &[u8], domain: u64) -> GroupG2 {
     // This is a wrapper to easily change implementation if we switch hashing methods
     hash_and_test_g2(msg, domain)
-}
-
-// Use hash-and-test method to convert a hash to a G1 point
-pub fn hash_and_test_g1(msg: &[u8], domain: u64) -> GroupG1 {
-    // Counter for incrementing the pre-hash messages
-    let mut counter = 0 as u8;
-    let mut curve_point: GroupG1;
-    let q = BigNum::new_ints(&rom::MODULUS);
-
-    // Continue to increment pre-hash message until valid x coordinate is found
-    loop {
-        // Hash (message, domain, counter) for x coordinate
-        let mut x = vec![0 as u8; 16];
-        x.append(&mut hash(&[msg, &domain.to_be_bytes(), &[counter]].concat()));
-
-        // Convert Hashes to BigNums mod q
-        let mut x = BigNum::frombytes(&x);
-        x.rmod(&q);
-
-        curve_point = GroupG1::new_big(&x);
-
-        if !curve_point.is_infinity() {
-            break;
-        }
-
-        counter += 1;
-    }
-
-    // Take larger of two y values
-    let y = curve_point.gety();
-    let mut neg_y = curve_point.gety();
-    neg_y = BigNum::modneg(&mut neg_y, &q);
-    if BigNum::comp(&y, &neg_y) < 0 {
-        curve_point.neg();
-    }
-
-    // Multiply the point by given G1_Cofactor
-    curve_point.cfp(); // TODO: ensure this is correct G1 cofactor
-    curve_point
-}
-
-// Use hash-and-test method to convert a Hash to a G2 point
-#[allow(non_snake_case)]
-pub fn hash_and_test_g2(msg: &[u8], domain: u64) -> GroupG2 {
-    // Counter for incrementing the pre-hash messages
-    let mut real_counter = 1 as u8;
-    let mut imaginary_counter = 2 as u8;
-    let mut curve_point: GroupG2;
-
-    // Continue to increment pre-hash message until valid x coordinate is found
-    loop {
-        // Hash (message, domain, counter) for x-real and x-imaginary
-        let mut x_real = vec![0 as u8; 16];
-        x_real.append(&mut hash(&[msg, &domain.to_be_bytes(), &[real_counter]].concat()));
-        let mut x_imaginary = vec![0 as u8; 16];
-        x_imaginary.append(&mut hash(&[msg, &domain.to_be_bytes(), &[imaginary_counter]].concat()));
-
-        // Convert Hashes to Fp2
-        let q = BigNum::new_ints(&rom::MODULUS);
-        let mut x_real = BigNum::frombytes(&x_real);
-        let mut x_imaginary = BigNum::frombytes(&x_imaginary);
-        let mut x = FP2::new_bigs(&x_real, &x_imaginary);
-
-        x.norm();
-        curve_point = GroupG2::new_fp2(&x);
-
-        if !curve_point.is_infinity() {
-            break;
-        }
-
-        real_counter += 1;
-        imaginary_counter += 1;
-    }
-
-    // Take larger of two y values
-    let mut y = curve_point.getpy();
-    let mut neg_y = curve_point.getpy();
-    neg_y.neg();
-    if cmp_fp2(&mut y, &mut neg_y) < 0 {
-        curve_point.neg();
-    }
-
-    // Multiply the point by given G2_Cofactor
-    multiply_g2_cofactor(&mut curve_point)
 }
 
 // Compare values of two FP2 elements,
@@ -193,258 +182,6 @@ pub fn multiply_g2_cofactor(curve_point: &mut GroupG2) -> GroupG2 {
     curve_point = curve_point.mul(&g2_cofactor_shift);
     let lowpart = lowpart.mul(&g2_cofactor_low);
     curve_point.add(&lowpart);
-    curve_point
-}
-
-// Fouque Tibouchi G1
-pub fn fouque_tibouchi_twice_g1(msg: &[u8], domain: u64) -> GroupG1 {
-    let q = BigNum::new_ints(&rom::MODULUS);
-
-    // Hash (message, domain) for x coordinate
-    let mut t0 = hash512(&[msg, &domain.to_be_bytes(), &[1]].concat());
-    let mut t1 = hash512(&[msg, &domain.to_be_bytes(), &[2]].concat());
-
-    // Convert hashes to Fp
-    let mut t0 = BigNum::frombytes(&t0);
-    let mut t1 = BigNum::frombytes(&t1);
-    let mut t0 = FP::new_big(&t0);
-    let mut t1 = FP::new_big(&t1);
-
-    // Encode to G1
-    let mut t0 = sw_encoding_g1(&mut t0);
-    let t1 = sw_encoding_g1(&mut t1);
-
-    // t0 = t0 + t1
-    t0.add(&t1);
-    t0.cfp(); // TODO ensure this multiplies by cofactor correctly
-    t0
-}
-
-// Fouque Tibouchi twice and adds the result on G1
-pub fn fouque_tibouchi_g1(msg: &[u8], domain: u64) -> GroupG1 {
-    let q = BigNum::new_ints(&rom::MODULUS);
-
-    // Hash (message, domain) for x coordinate
-    let mut t0 = hash512(&[msg, &domain.to_be_bytes(), &[1]].concat());
-
-    // Convert hashes to Fp
-    let mut t0 = BigNum::frombytes(&t0);
-    let mut t0 = FP::new_big(&t0);
-
-    // Encode to G1
-    let mut t0 = sw_encoding_g1(&mut t0);
-
-    // Multiplies by G1 cofactor
-    t0.cfp();
-
-    t0
-}
-
-// Shallue-van de Woestijne encoding
-pub fn sw_encoding_g1(t: &mut FP) -> GroupG1 {
-    // Map zero hash to point at infinity
-    if t.iszilch() {
-        return GroupG1::new();
-    }
-
-    // Parity to avoid negation collisions
-    let mut neg_t = t.clone();
-    neg_t.neg();
-    let parity = BigNum::comp(&t.x, &neg_t.x);
-
-    let fp_one = FP::new_int(1);
-
-    // w = t
-    let mut w = t.clone();
-    // w = t^2
-    w.sqr();
-    // w = t^2 + b
-    w.add(&FP::new_int(rom::CURVE_B_I));
-    // w = t^2 + b + 1
-    w.add(&fp_one);
-    // w = 1 / (t^2 + b + 1)
-    w.inverse();
-    // w = t / (t^2 + b + 1)
-    w.mul(&t);
-    // sqrt(-3)
-    // OPTIMIZE: This should probably be added as a global const
-    let mut sqrt_n3 = FP::new_int(-3);
-    sqrt_n3 = sqrt_n3.sqrt();
-
-    // w = sqrt(-3) * t / (t^2 + b + 1)
-    w.mul(&sqrt_n3);
-
-    // x1 = (-1 + sqrt(-3)) / 2 - tw
-    let mut x1 = sqrt_n3.clone();
-    x1.sub(&fp_one);
-    x1.norm();
-    x1.div2();
-    let mut tw = t.clone();
-    tw.mul(&w);
-    x1.sub(&tw);
-
-    // OPTIMIZATION: Check if x1 is valid here and return.
-
-    // x2 = -1 - x1
-    let mut x2 = x1.clone();
-    x2.neg();
-    x2.sub(&fp_one);
-
-    // OPTIMIZATION: Check if x2 is valid here and return.
-
-    // x3 = 1 + 1 / w^2
-    let mut x3 = w.clone();
-    x3.sqr();
-    x3.inverse();
-    x3.add(&fp_one);
-
-    // Take first valid point of x1, x2, x3
-    let mut curve_point = GroupG1::new_big(&x1.redc());
-    if curve_point.is_infinity() {
-        curve_point = GroupG1::new_big(&x2.redc());
-        if curve_point.is_infinity() {
-            curve_point = GroupG1::new_big(&x3.redc());
-        }
-    }
-
-    // Ensure if t > -t then y > -y && if t < -t then y < -y
-    let y = curve_point.getpy();
-    let mut neg_y = y.clone();
-    neg_y.neg();
-    let parity_2 = BigNum::comp(&y.x, &neg_y.x);
-    if (parity < 0 && parity_2 > 0) || (parity > 0 && parity_2 < 0) {
-        curve_point.neg();
-    }
-
-    curve_point
-}
-
-// Fouque Tibouchi Twice and add results on G2
-pub fn fouque_tibouchi_twice_g2(msg: &[u8], domain: u64) -> GroupG2 {
-    let q = BigNum::new_ints(&rom::MODULUS);
-
-    // Hash (message, domain) for x coordinate
-    let mut t00 = hash512(&[msg, &domain.to_be_bytes(), &[10]].concat());
-    let mut t01 = hash512(&[msg, &domain.to_be_bytes(), &[11]].concat());
-    let mut t10 = hash512(&[msg, &domain.to_be_bytes(), &[20]].concat());
-    let mut t11 = hash512(&[msg, &domain.to_be_bytes(), &[21]].concat());
-
-    // Convert hashes to Fp
-    let mut t00 = BigNum::frombytes(&t00);
-    let mut t01 = BigNum::frombytes(&t01);
-    let mut t10 = BigNum::frombytes(&t10);
-    let mut t11 = BigNum::frombytes(&t11);
-    let mut t0 = FP2::new_bigs(&t00, &t01);
-    let mut t1 = FP2::new_bigs(&t10, &t11);
-
-    // Encode to G1
-    let mut t0 = sw_encoding_g2(&mut t0);
-    let t1 = sw_encoding_g2(&mut t1);
-
-    // t0 = t0 + t1
-    t0.add(&t1);
-
-    multiply_g2_cofactor(&mut t0)
-}
-
-// Fouque Tibouchi G2
-pub fn fouque_tibouchi_g2(msg: &[u8], domain: u64) -> GroupG2 {
-    let q = BigNum::new_ints(&rom::MODULUS);
-
-    // Hash (message, domain) for x coordinate
-    let mut t00 = hash512(&[msg, &domain.to_be_bytes(), &[10]].concat());
-    let mut t01 = hash512(&[msg, &domain.to_be_bytes(), &[11]].concat());
-
-    // Convert hashes to Fp
-    let mut t00 = BigNum::frombytes(&t00);
-    let mut t01 = BigNum::frombytes(&t01);
-    let mut t0 = FP2::new_bigs(&t00, &t01);
-
-    // Encode to G1
-    let mut t0 = sw_encoding_g2(&mut t0);
-
-    multiply_g2_cofactor(&mut t0)
-}
-
-// Shallue-van de Woestijne encoding
-pub fn sw_encoding_g2(t: &mut FP2) -> GroupG2 {
-    // Map zero hash to point at infinity
-    if t.iszilch() {
-        return GroupG2::new();
-    }
-
-    // OPTIMIZATIONS: Remove the clones()
-    // Parity to avoid negation collisions
-    let mut neg_t = t.clone();
-    neg_t.neg();
-    let parity = BigNum::comp(&t.getb(), &mut neg_t.getb());
-
-    let fp2_one = FP2::new_int(1);
-
-    // w = t
-    let mut w = t.clone();
-    // w = t^2
-    w.sqr();
-    // w = t^2 + b
-    let fp_b = FP::new_int(rom::CURVE_B_I);
-    w.add(&FP2::new_fps(&fp_b, &fp_b));
-    // w = t^2 + b + 1
-    w.add(&fp2_one);
-    // w = 1 / (t^2 + b + 1)
-    w.inverse();
-    // w = t / (t^2 + b + 1)
-    w.mul(&t);
-    // sqrt(-3)
-    // OPTIMIZE: This should probably be added as a global const
-    let mut sqrt_n3 = FP::new_int(-3);
-    sqrt_n3 = sqrt_n3.sqrt(); // TODO: This maybe should be fp2
-
-    // w = sqrt(-3) * t / (t^2 + b + 1)
-    w.pmul(&sqrt_n3);
-
-    // x1 = (-1 + sqrt(-3)) / 2 - tw
-    let mut x1 = FP2::new_fp(&sqrt_n3);
-    x1.sub(&fp2_one);
-    x1.norm();
-    x1.div2();
-    let mut tw = t.clone();
-    tw.mul(&w);
-    x1.sub(&tw);
-
-    // OPTIMIZATION: Check if x1 is valid here and return.
-
-    // x2 = -1 - x1
-    let mut x2 = x1.clone();
-    x2.neg();
-    x2.sub(&fp2_one);
-
-    // OPTIMIZATION: Check if x2 is valid here and return.
-
-    // x3 = 1 + 1 / w^2
-    let mut x3 = w.clone();
-    x3.sqr();
-    x3.inverse();
-    x3.add(&fp2_one);
-
-    // Take first valid point of x1, x2, x3
-    let mut curve_point = GroupG2::new_fp2(&x1);
-    if curve_point.is_infinity() {
-        curve_point = GroupG2::new_fp2(&x2);
-        if curve_point.is_infinity() {
-            curve_point = GroupG2::new_fp2(&x3);
-        }
-    }
-
-
-    // Ensure if t > -t then y > -y && if t < -t then y < -y
-    let mut y = curve_point.gety();
-    let mut neg_y = y.clone();
-    neg_y.neg();
-    let parity_2 = BigNum::comp(&y.getb(), &neg_y.getb());
-    if (parity < 0 && parity_2 > 0) || (parity > 0 && parity_2 < 0) {
-        curve_point.neg();
-    }
-
     curve_point
 }
 
@@ -657,6 +394,7 @@ pub fn calc_a_flag(y: &mut BigNum) -> u8 {
     let mut y_bytes = vec![0; MODBYTES];
     let mut results = vec![0; MODBYTES];
     y.tobytes(&mut y_bytes);
+    // TODO: We should not need to get Q from a string here it is in 'rom'
     let q = hex::decode(Q_STRING).unwrap();
 
     // Multiply y by two with carrying
@@ -677,6 +415,476 @@ pub fn calc_a_flag(y: &mut BigNum) -> u8 {
     }
 
     1 // Should not be reached as q is prime -> 2 * y != q
+}
+
+/**********************
+* Hash to G1 Methods
+**********************/
+
+// Use hash-and-test method to convert a hash to a G1 point
+pub fn hash_and_test_g1(msg: &[u8], domain: u64) -> GroupG1 {
+    // Counter for incrementing the pre-hash messages
+    let mut counter = 0 as u8;
+    let mut curve_point: GroupG1;
+    let q = BigNum::new_ints(&rom::MODULUS);
+
+    // Continue to increment pre-hash message until valid x coordinate is found
+    loop {
+        // Hash (message, domain, counter) for x coordinate
+        let mut x = vec![0 as u8; 16];
+        x.append(&mut hash(&[msg, &domain.to_be_bytes(), &[counter]].concat()));
+
+        // Convert Hashes to BigNums mod q
+        let mut x = BigNum::frombytes(&x);
+        x.rmod(&q);
+
+        curve_point = GroupG1::new_big(&x);
+
+        if !curve_point.is_infinity() {
+            break;
+        }
+
+        counter += 1;
+    }
+
+    // Take larger of two y values
+    let y = curve_point.gety();
+    let mut neg_y = curve_point.gety();
+    neg_y = BigNum::modneg(&mut neg_y, &q);
+    if BigNum::comp(&y, &neg_y) < 0 {
+        curve_point.neg();
+    }
+
+    // Multiply the point by given G1_Cofactor
+    curve_point.cfp(); // TODO: ensure this is correct G1 cofactor
+    curve_point
+}
+
+// Fouque Tibouchi G1
+pub fn fouque_tibouchi_twice_g1(msg: &[u8], domain: u64) -> GroupG1 {
+    // Hash (message, domain) for x coordinate
+    let t0 = hash512(&[msg, &domain.to_be_bytes(), &[1]].concat());
+    let t1 = hash512(&[msg, &domain.to_be_bytes(), &[2]].concat());
+
+    // Convert hashes to Fp
+    let t0 = BigNum::frombytes(&t0);
+    let t1 = BigNum::frombytes(&t1);
+    let mut t0 = FP::new_big(&t0);
+    let mut t1 = FP::new_big(&t1);
+
+    // Encode to G1
+    let mut t0 = sw_encoding_g1(&mut t0);
+    let t1 = sw_encoding_g1(&mut t1);
+
+    // t0 = t0 + t1
+    t0.add(&t1);
+    t0.cfp(); // TODO ensure this multiplies by cofactor correctly
+    t0
+}
+
+// Fouque Tibouchi twice and adds the result on G1
+pub fn fouque_tibouchi_g1(msg: &[u8], domain: u64) -> GroupG1 {
+    // Hash (message, domain) for x coordinate
+    let t0 = hash512(&[msg, &domain.to_be_bytes(), &[1]].concat());
+
+    // Convert hashes to Fp
+    let t0 = BigNum::frombytes(&t0);
+    let mut t0 = FP::new_big(&t0);
+
+    // Encode to G1
+    let mut t0 = sw_encoding_g1(&mut t0);
+
+    // Multiplies by G1 cofactor
+    t0.cfp();
+
+    t0
+}
+
+// Shallue-van de Woestijne encoding
+pub fn sw_encoding_g1(t: &mut FP) -> GroupG1 {
+    // Map zero hash to point at infinity
+    if t.iszilch() {
+        return GroupG1::new();
+    }
+
+    // Parity to avoid negation collisions
+    let mut neg_t = t.clone();
+    neg_t.neg();
+    let parity = BigNum::comp(&t.x, &neg_t.x);
+
+    let fp_one = FP::new_int(1);
+
+    // w = t
+    let mut w = t.clone();
+    // w = t^2
+    w.sqr();
+    // w = t^2 + b
+    w.add(&FP::new_int(rom::CURVE_B_I));
+    // w = t^2 + b + 1
+    w.add(&fp_one);
+    // w = 1 / (t^2 + b + 1)
+    w.inverse();
+    // w = t / (t^2 + b + 1)
+    w.mul(&t);
+    // sqrt(-3)
+    // OPTIMIZE: This should probably be added as a global const
+    let mut sqrt_n3 = FP::new_int(-3);
+    sqrt_n3 = sqrt_n3.sqrt();
+
+    // w = sqrt(-3) * t / (t^2 + b + 1)
+    w.mul(&sqrt_n3);
+
+    // x1 = (-1 + sqrt(-3)) / 2 - tw
+    let mut x1 = sqrt_n3.clone();
+    x1.sub(&fp_one);
+    x1.norm();
+    x1.div2();
+    let mut tw = t.clone();
+    tw.mul(&w);
+    x1.sub(&tw);
+
+    // OPTIMIZATION: Check if x1 is valid here and return.
+
+    // x2 = -1 - x1
+    let mut x2 = x1.clone();
+    x2.neg();
+    x2.sub(&fp_one);
+
+    // OPTIMIZATION: Check if x2 is valid here and return.
+
+    // x3 = 1 + 1 / w^2
+    let mut x3 = w.clone();
+    x3.sqr();
+    x3.inverse();
+    x3.add(&fp_one);
+
+    // Take first valid point of x1, x2, x3
+    let mut curve_point = GroupG1::new_big(&x1.redc());
+    if curve_point.is_infinity() {
+        curve_point = GroupG1::new_big(&x2.redc());
+        if curve_point.is_infinity() {
+            curve_point = GroupG1::new_big(&x3.redc());
+        }
+    }
+
+    // Ensure if t > -t then y > -y && if t < -t then y < -y
+    let y = curve_point.getpy();
+    let mut neg_y = y.clone();
+    neg_y.neg();
+    let parity_2 = BigNum::comp(&y.x, &neg_y.x);
+    if (parity < 0 && parity_2 > 0) || (parity > 0 && parity_2 < 0) {
+        curve_point.neg();
+    }
+
+    curve_point
+}
+
+/**********************
+* Hash to G2 Methods
+**********************/
+
+// Use hash-and-test method to convert a Hash to a G2 point
+#[allow(non_snake_case)]
+pub fn hash_and_test_g2(msg: &[u8], domain: u64) -> GroupG2 {
+    // Counter for incrementing the pre-hash messages
+    let mut real_counter = 1 as u8;
+    let mut imaginary_counter = 2 as u8;
+    let mut curve_point: GroupG2;
+
+    // Continue to increment pre-hash message until valid x coordinate is found
+    loop {
+        // Hash (message, domain, counter) for x-real and x-imaginary
+        let mut x_real = vec![0 as u8; 16];
+        x_real.append(&mut hash(&[msg, &domain.to_be_bytes(), &[real_counter]].concat()));
+        let mut x_imaginary = vec![0 as u8; 16];
+        x_imaginary.append(&mut hash(&[msg, &domain.to_be_bytes(), &[imaginary_counter]].concat()));
+
+        // Convert Hashes to Fp2
+        let x_real = BigNum::frombytes(&x_real);
+        let x_imaginary = BigNum::frombytes(&x_imaginary);
+        let mut x = FP2::new_bigs(&x_real, &x_imaginary);
+
+        x.norm();
+        curve_point = GroupG2::new_fp2(&x);
+
+        if !curve_point.is_infinity() {
+            break;
+        }
+
+        real_counter += 1;
+        imaginary_counter += 1;
+    }
+
+    // Take larger of two y values
+    let mut y = curve_point.getpy();
+    let mut neg_y = curve_point.getpy();
+    neg_y.neg();
+    if cmp_fp2(&mut y, &mut neg_y) < 0 {
+        curve_point.neg();
+    }
+
+    // Multiply the point by given G2_Cofactor
+    multiply_g2_cofactor(&mut curve_point)
+}
+
+
+// Fouque Tibouchi Twice and add results on G2
+pub fn fouque_tibouchi_twice_g2(msg: &[u8], domain: u64) -> GroupG2 {
+    // Hash (message, domain) for x coordinate
+    let t00 = hash512(&[msg, &domain.to_be_bytes(), &[10]].concat());
+    let t01 = hash512(&[msg, &domain.to_be_bytes(), &[11]].concat());
+    let t10 = hash512(&[msg, &domain.to_be_bytes(), &[20]].concat());
+    let t11 = hash512(&[msg, &domain.to_be_bytes(), &[21]].concat());
+
+    // Convert hashes to Fp2
+    let t00 = BigNum::frombytes(&t00);
+    let t01 = BigNum::frombytes(&t01);
+    let t10 = BigNum::frombytes(&t10);
+    let t11 = BigNum::frombytes(&t11);
+    let mut t0 = FP2::new_bigs(&t00, &t01);
+    let mut t1 = FP2::new_bigs(&t10, &t11);
+
+    // Encode to G1
+    let mut t0 = sw_encoding_g2(&mut t0);
+    let t1 = sw_encoding_g2(&mut t1);
+
+    // t0 = t0 + t1
+    t0.add(&t1);
+
+    multiply_g2_cofactor(&mut t0)
+}
+
+// Fouque Tibouchi G2
+pub fn fouque_tibouchi_g2(msg: &[u8], domain: u64) -> GroupG2 {
+    // Hash (message, domain) for x coordinate
+    let t00 = hash512(&[msg, &domain.to_be_bytes(), &[10]].concat());
+    let t01 = hash512(&[msg, &domain.to_be_bytes(), &[11]].concat());
+
+    // Convert hashes to Fp2
+    let t00 = BigNum::frombytes(&t00);
+    let t01 = BigNum::frombytes(&t01);
+    let mut t0 = FP2::new_bigs(&t00, &t01);
+
+    // Encode to G1
+    let mut t0 = sw_encoding_g2(&mut t0);
+
+    multiply_g2_cofactor(&mut t0)
+}
+
+// Shallue-van de Woestijne encoding
+pub fn sw_encoding_g2(t: &mut FP2) -> GroupG2 {
+    // Map zero hash to point at infinity
+    if t.iszilch() {
+        return GroupG2::new();
+    }
+
+    // OPTIMIZATIONS: Remove the clones()
+    // Parity to avoid negation collisions
+    let mut neg_t = t.clone();
+    neg_t.neg();
+    let parity = BigNum::comp(&t.getb(), &mut neg_t.getb());
+
+    let fp2_one = FP2::new_int(1);
+
+    // w = t
+    let mut w = t.clone();
+    // w = t^2
+    w.sqr();
+    // w = t^2 + b
+    let fp_b = FP::new_int(rom::CURVE_B_I);
+    w.add(&FP2::new_fps(&fp_b, &fp_b));
+    // w = t^2 + b + 1
+    w.add(&fp2_one);
+    // w = 1 / (t^2 + b + 1)
+    w.inverse();
+    // w = t / (t^2 + b + 1)
+    w.mul(&t);
+    // sqrt(-3)
+
+    // OPTIMIZE: This should probably be added as a global const
+    let mut sqrt_n3 = FP::new_int(-3);
+    sqrt_n3 = sqrt_n3.sqrt();
+
+    // w = sqrt(-3) * t / (t^2 + b + 1)
+    w.pmul(&sqrt_n3);
+
+    // x1 = (-1 + sqrt(-3)) / 2 - tw
+    let mut x1 = FP2::new_fp(&sqrt_n3);
+    x1.sub(&fp2_one);
+    x1.norm();
+    x1.div2();
+    let mut tw = t.clone();
+    tw.mul(&w);
+    x1.sub(&tw);
+
+    // OPTIMIZATION: Check if x1 is valid here and return.
+
+    // x2 = -1 - x1
+    let mut x2 = x1.clone();
+    x2.neg();
+    x2.sub(&fp2_one);
+
+    // OPTIMIZATION: Check if x2 is valid here and return.
+
+    // x3 = 1 + 1 / w^2
+    let mut x3 = w.clone();
+    x3.sqr();
+    x3.inverse();
+    x3.add(&fp2_one);
+
+    // Take first valid point of x1, x2, x3
+    let mut curve_point = GroupG2::new_fp2(&x1);
+    if curve_point.is_infinity() {
+        curve_point = GroupG2::new_fp2(&x2);
+        if curve_point.is_infinity() {
+            curve_point = GroupG2::new_fp2(&x3);
+        }
+    }
+
+
+    // Ensure if t > -t then y > -y && if t < -t then y < -y
+    let mut y = curve_point.gety();
+    let mut neg_y = y.clone();
+    neg_y.neg();
+    let parity_2 = BigNum::comp(&y.getb(), &neg_y.getb());
+    if (parity < 0 && parity_2 > 0) || (parity > 0 && parity_2 < 0) {
+        curve_point.neg();
+    }
+
+    curve_point
+}
+
+
+// A hash-to-curve method by Wahby and Boneh
+pub fn optimised_swu_g2(msg: &[u8], domain: u64) -> GroupG2 {
+    // Hash (message, domain) for x coordinate
+    let t00 = hash512(&[msg, &domain.to_be_bytes(), &[10]].concat());
+    let t01 = hash512(&[msg, &domain.to_be_bytes(), &[11]].concat());
+
+    // Convert hashes to Fp2
+    let t00 = BigNum::frombytes(&t00);
+    let t01 = BigNum::frombytes(&t01);
+    let t0 = FP2::new_bigs(&t00, &t01);
+
+    // Convert to point on 3-Isogeny curve
+    let (x, y, z) = unoptimized_iso3_hash_to_point(&t0);
+
+    // Convert from 3-Isogeny curve to G2 point
+    iso3_to_g2(x, y, z)
+}
+pub fn unoptimized_iso3_hash_to_point(t: &FP2) -> (FP2, FP2, FP2) {
+    // Setup required variables
+    let mut t2 = t.clone(); // t
+    t2.sqr(); // t^2 (store for later)
+    let mut et2 = t2.clone(); // et2 = t^2
+    et2.mul(&ISO3_E2); // et2 = e * t^2
+    let mut common = et2.clone(); // e * t^2
+    common.sqr(); // e^2 + t^4
+    common.add(&et2); // common = e^2 * t^4 + e * t^2
+
+    // Deal with case where e^2 * t^4 + e * t^2 == 0
+    let mut x0: FP2;
+    let mut z: FP2;
+    if common.iszilch() {
+        x0 = ISO3_B2.clone(); // x0 = b
+        let mut denominator = ISO3_E2.clone();
+        denominator.mul(&ISO3_A2); // denominator = e * a
+
+        z = denominator.clone();
+        // OPTIMIZATION: Consider faster method of inverse here
+        denominator.inverse(); // denominator = 1 / (e * a)
+
+        x0.mul(&denominator);
+    } else {
+        // Numerator (x0)
+        x0 = common.clone();
+        x0.add(&FP2::new_ints(1, 0));
+        x0.mul(&ISO3_B2); // b * (e^2 * t^4 + e * t^2 + 1)
+
+        // Denominator
+        let mut denominator = common.clone();
+        denominator.mul(&ISO3_A2);
+
+        z = denominator.clone();
+        // OPTIMIZATION: Consider faster method of inverse here
+        denominator.inverse();
+
+        x0.mul(&denominator);
+    }
+
+    // Calculate g(x0) = x^3 + ax + b
+    let mut gx0 = x0.clone();
+    gx0.sqr();
+    gx0.mul(&x0);
+    let mut ax0 = x0.clone();
+    ax0.mul(&ISO3_A2);
+    gx0.add(&ax0);
+    gx0.add(&ISO3_B2);
+
+    let mut y0 = gx0.clone();
+    if y0.sqrt() {
+        // y0 is a valid square root
+        return (x0, y0, z);
+    }
+
+    // y0 is not a valid square root attempt to calculate x1
+    // x1 = e * t^2 * x0
+    let mut x1 = x0;
+    x1.mul(&ISO3_E2);
+    let mut t2 = t.clone();
+    t2.sqr(); // t^2
+    x1.add(&t2);
+
+    // y1^2 = e^3 * t^6
+    let mut gx1 = gx0;
+    let mut t6 = t2.clone(); // t^2
+    t6.sqr(); // t^4
+    t6.mul(&t2); // t^6
+    gx1.mul(&t6); // t^6 * g(x0)
+    let mut e3 = ISO3_E2.clone(); // e
+    e3.sqr(); // e^2
+    e3.mul(&ISO3_E2); // e^3
+    gx1.mul(&e3); // e^3 * t^6 * g(x0)
+
+    // OPTIMIZATION: sqrt should be done using sqrt candidates
+    if !gx1.sqrt() {
+        // Square root failed and we have an issue
+        println!("Square root of x1 failed");
+    }
+
+    (x1, gx1, z)
+}
+
+pub fn iso3_to_g2(x: FP2, y: FP2, z: FP2) -> GroupG2 {
+    // TODO: write iso3 function
+
+
+    // TODO: remove when function is complete
+    GroupG2::new_fp2s(&x, &y)
+}
+
+// Setup the 4 roots of unity
+pub fn roots_of_unity() -> [FP2; 4] {
+    let a = FP2::new_ints(1, 0);
+    let b = FP2::new_ints(0, 1);
+    let c = FP2::new_fps(&SQRT_1, &SQRT_1);
+    let mut neg_sqrt_1 = SQRT_1.clone();
+    neg_sqrt_1.neg();
+    let d = FP2::new_fps(&SQRT_1, &neg_sqrt_1);
+
+    [a, b, c, d]
+}
+
+// Setup the four different roots of eta = sqrt(e^3 * (-1)^(1/4))
+pub fn etas() -> [FP2; 4] {
+    let a = FP2::new_fps(&EV1, &FP::new());
+    let b = FP2::new_fps(&FP::new(), &EV1);
+    let c = FP2::new_fps(&EV2, &EV2);
+    let mut negative_ev2 = EV2.clone();
+    negative_ev2.neg();
+    let d = FP2::new_fps(&EV2, &negative_ev2);
+
+    [a, b, c, d]
 }
 
 #[cfg(test)]
@@ -917,5 +1125,34 @@ mod tests {
             let mut point = fouque_tibouchi_g2(&msg, i);
             assert!(!point.is_infinity());
         }
+    }
+
+    // TODO: Delete - Temp test to print certain values
+    #[test]
+    pub fn print_quatics() {
+        /*
+        let bytes = hex::decode("02c4a7244a026bd3e305cc456ad9e235ed85f8b53954258ec8186bb3d4eccef7c4ee7b8d4b9e063a6c88d0aa3e03ba01").unwrap();
+        let big = BIG::frombytes(&bytes);
+        let mut fp2 = FP2::new_big(&big);
+        fp2.sqr();
+        fp2.norm();
+        println!("{:?}", fp2.tostring());
+        fp2.sqr();
+        fp2.norm();
+        println!("{:?}", fp2.tostring());
+        fp2.sqr();
+        fp2.norm();
+        println!("{:?}", fp2.tostring());
+        */
+        let mut e = ISO3_E2.clone();
+        e.sqr();
+        e.mul(&ISO3_E2);
+        println!("{:?}", e.tostring());
+        let mut neg_1 = FP2::new_ints(0, 1);
+        neg_1.inverse();
+        neg_1.sqrt();
+        e.mul(&neg_1);
+        e.sqrt();
+        println!("{:?}", e.tostring());
     }
 }

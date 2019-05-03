@@ -43,42 +43,49 @@ impl FP2 {
 		f.a.copy(&FP::new_int(a));
 		f.b.zero();
 		return f;
-	}	
+	}
+
+	pub fn new_ints(a: isize, b: isize) -> FP2 {
+		let mut f = FP2::new();
+		f.a.copy(&FP::new_int(a));
+		f.b.copy(&FP::new_int(b));
+		return f;
+	}
 
 	pub fn new_copy(x: &FP2) -> FP2 {
 		let mut f=FP2::new();
 		f.a.copy(&x.a);
 		f.b.copy(&x.b);
 		return f
-	}	
+	}
 
 	pub fn new_fps(c: &FP,d: &FP) -> FP2 {
 		let mut f=FP2::new();
 		f.a.copy(c);
 		f.b.copy(d);
 		return f;
-	}	
+	}
 
 	pub fn new_bigs(c: &BIG,d: &BIG) -> FP2 {
 		let mut f=FP2::new();
 		f.a.copy(&FP::new_big(c));
 		f.b.copy(&FP::new_big(d));
 		return f;
-	}	
+	}
 
 	pub fn new_fp(c: &FP) -> FP2 {
 		let mut f=FP2::new();
 		f.a.copy(c);
 		f.b.zero();
 		return f;
-	}	
+	}
 
 	pub fn new_big(c: &BIG) -> FP2 {
 		let mut f=FP2::new();
 		f.a.copy(&FP::new_big(c));
 		f.b.zero();
 		return f;
-	}	
+	}
 
 /* reduce components mod Modulus */
 	pub fn reduce(&mut self) {
@@ -90,18 +97,18 @@ impl FP2 {
 	pub fn norm(&mut self) {
 		self.a.norm();
 		self.b.norm();
-	}	
+	}
 
 /* test self=0 ? */
 	pub fn iszilch(&mut self) -> bool {
 		self.reduce();
 		return self.a.iszilch() && self.b.iszilch();
-	}	
+	}
 
 	pub fn cmove(&mut self,g:&FP2,d: isize) {
 		self.a.cmove(&g.a,d);
 		self.b.cmove(&g.b,d);
-	}		
+	}
 
 /* test self=1 ? */
 	pub fn isunity(&mut self) -> bool {
@@ -115,7 +122,7 @@ impl FP2 {
 	}
 
 /* extract a */
-	pub fn geta(&mut self) -> BIG { 
+	pub fn geta(&mut self) -> BIG {
 		return self.a.redc();
 	}
 
@@ -140,7 +147,7 @@ impl FP2 {
 	pub fn one(&mut self) {
 		self.a.one();
 		self.b.zero();
-	}	
+	}
 
 /* negate self mod Modulus */
 	pub fn neg(&mut self) {
@@ -155,7 +162,7 @@ impl FP2 {
 		self.b.copy(&m);
 		self.b.add(&self.a);
 		self.a.copy(&t);
-	}	
+	}
 
 /* set to a-ib */
 	pub fn conj(&mut self) {
@@ -219,7 +226,7 @@ impl FP2 {
 		self.a.norm();
 
 		self.a.mul(&w1);
-	}	
+	}
 
 /* this*=y */
 	pub fn mul(&mut self,y :&FP2) {
@@ -231,7 +238,7 @@ impl FP2 {
 		}
 
 
-  		let p = BIG::new_ints(&rom::MODULUS);    
+  		let p = BIG::new_ints(&rom::MODULUS);
   		let mut pr=DBIG::new();
 
   		pr.ucopy(&p);
@@ -281,7 +288,7 @@ impl FP2 {
 
 /* output to hex string */
 	pub fn tostring(&mut self) -> String {
-		return format!("[{},{}]",self.a.tostring(),self.b.tostring());		
+		return format!("[{},{}]",self.a.tostring(),self.b.tostring());
 	}
 
 /* self=1/self */
@@ -331,7 +338,7 @@ impl FP2 {
 		self.norm();
 		t.a.copy(&self.a); t.a.add(&self.b);
 		t.b.copy(&self.b); t.b.sub(&self.a);
-		t.norm(); self.copy(&t); 
+		t.norm(); self.copy(&t);
 	}
 
 /* w/=(1+sqrt(-1)) */
@@ -340,7 +347,7 @@ impl FP2 {
 		self.norm();
 		t.a.copy(&self.a); t.a.add(&self.b);
 		t.b.copy(&self.b); t.b.sub(&self.a);
-		t.norm(); self.copy(&t); 
+		t.norm(); self.copy(&t);
 		self.div2();
 	}
 
