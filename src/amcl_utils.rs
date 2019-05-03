@@ -1,4 +1,5 @@
 extern crate amcl;
+#[cfg(feature = "std")]
 extern crate hex;
 extern crate rand;
 extern crate tiny_keccak;
@@ -31,7 +32,11 @@ pub const G2_BYTE_SIZE: usize = (4 * MODBYTES) as usize;
 // Byte size of secret key
 pub const MOD_BYTE_SIZE: usize = bls381_MODBYTES;
 
-pub const Q_STRING: &str = "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab";
+pub const Q: [u8; 48] = [
+    26, 1, 17, 234, 57, 127, 230, 154, 75, 27, 167, 182, 67, 75, 172, 215, 100, 119, 75, 132, 243,
+    133, 18, 191, 103, 48, 210, 160, 246, 176, 246, 36, 30, 171, 255, 254, 177, 83, 255, 255, 185,
+    254, 255, 255, 255, 255, 170, 171,
+];
 
 // G2_Cofactor as arrays of i64
 pub const G2_COFACTOR_HIGH: [Chunk; NLEN] = [
@@ -62,6 +67,7 @@ pub const G2_COFACTOR_SHIFT: [Chunk; NLEN] = [
     0x0000_0000_0000_0000,
 ];
 
+#[cfg(feature = "std")]
 lazy_static! {
     pub static ref GENERATORG1: GroupG1 = GroupG1::generator();
     pub static ref GENERATORG2: GroupG2 = GroupG2::generator();
@@ -353,7 +359,6 @@ pub fn calc_a_flag(y: &mut BigNum) -> u8 {
     let mut y_bytes = vec![0; MODBYTES];
     let mut results = vec![0; MODBYTES];
     y.tobytes(&mut y_bytes);
-    let q = hex::decode(Q_STRING).unwrap();
 
     // Multiply y by two with carrying
     let mut carry: u64 = 0;
@@ -365,9 +370,9 @@ pub fn calc_a_flag(y: &mut BigNum) -> u8 {
 
     // If y * 2 > q -> (y * 2) / q == 1
     for (i, res) in results.iter().enumerate() {
-        if *res > q[i] {
+        if *res > Q[i] {
             return 1;
-        } else if *res < q[i] {
+        } else if *res < Q[i] {
             return 0;
         }
     }

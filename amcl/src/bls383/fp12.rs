@@ -547,6 +547,7 @@ impl FP12 {
 		for i in 0..mb {w[i+11*mb]=t[i]}
 	}
 
+    #[cfg(feature = "std")]
 /* output to hex string */
 	pub fn tostring(&mut self) -> String {
 		return format!("[{},{},{}]",self.a.tostring(),self.b.tostring(),self.c.tostring());		

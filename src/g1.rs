@@ -1,5 +1,6 @@
 use super::amcl_utils::{compress_g1, decompress_g1, BigNum, GroupG1};
 use super::errors::DecodeError;
+#[cfg(feature = "std")]
 use std::fmt;
 
 pub struct G1Point {
@@ -57,6 +58,7 @@ impl G1Point {
     }
 }
 
+#[cfg(feature = "std")]
 impl fmt::Debug for G1Point {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut temp = GroupG1::new();
