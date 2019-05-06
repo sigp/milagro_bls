@@ -74,6 +74,14 @@ impl ECP2 {
 		return E;
 	}
 
+	pub fn new_jacobian(x: FP2, y: FP2, z: FP2) -> ECP2 {
+		ECP2 {
+			x,
+			y,
+			z
+		}
+	}
+
 /* Test this=O? */
 	pub fn is_infinity(&self) -> bool {
 	//	if self.inf {return true}

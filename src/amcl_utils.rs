@@ -74,72 +74,73 @@ lazy_static! {
     pub static ref ISO3_E2: FP2 = FP2::new_ints(1, 1);
 
     // Roots of unity and eta
-    pub static ref SQRT_1: FP = FP::new_big(&BIG::frombytes(&hex::decode("6af0e0437ff400b6831e36d6bd17ffe48395dabc2d3435e77f76e17009241c5ee67992f72ec05f4c81084fbede3cc09").unwrap()));
-    pub static ref EV1: FP = FP::new_big(&BIG::frombytes(&hex::decode("02c4a7244a026bd3e305cc456ad9e235ed85f8b53954258ec8186bb3d4eccef7c4ee7b8d4b9e063a6c88d0aa3e03ba01").unwrap()));
-    pub static ref EV2: FP = FP::new_big(&BIG::frombytes(&hex::decode("085fa8cd9105715e641892a0f9a4bb2912b58b8d32f26594c60679cc7973076dc6638358daf3514d6426a813ae01f51a").unwrap()));
+    pub static ref SQRT_1: FP = FP::new_big(&BigNum::frombytes(&hex::decode("6af0e0437ff400b6831e36d6bd17ffe48395dabc2d3435e77f76e17009241c5ee67992f72ec05f4c81084fbede3cc09").unwrap()));
+    pub static ref EV1: FP = FP::new_big(&BigNum::frombytes(&hex::decode("02c4a7244a026bd3e305cc456ad9e235ed85f8b53954258ec8186bb3d4eccef7c4ee7b8d4b9e063a6c88d0aa3e03ba01").unwrap()));
+    pub static ref EV2: FP = FP::new_big(&BigNum::frombytes(&hex::decode("085fa8cd9105715e641892a0f9a4bb2912b58b8d32f26594c60679cc7973076dc6638358daf3514d6426a813ae01f51a").unwrap()));
 
     // ISO-3 Mapping values
     pub static ref XNUM: [FP2; 4] = [
         FP2::new_bigs(
-            &BIG::frombytes(&hex::decode("5c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97d6").unwrap()),
-            &BIG::frombytes(&hex::decode("5c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97d6").unwrap())
+            &BigNum::frombytes(&hex::decode("05c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97d6").unwrap()),
+            &BigNum::frombytes(&hex::decode("05c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97d6").unwrap())
         ),
         FP2::new_bigs(
-            &BIG::new(),
-            &BIG::frombytes(&hex::decode("11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71a").unwrap())
+            &BigNum::new(),
+            &BigNum::frombytes(&hex::decode("11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71a").unwrap())
         ),
         FP2::new_bigs(
-            &BIG::frombytes(&hex::decode("11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71a").unwrap()),
-            &BIG::frombytes(&hex::decode("8ab05f8bdd54cde190937e76bc3e447cc27c3d6fbd7063fcd104635a790520c0a395554e5c6aaaa9354ffffffffe38d").unwrap())
+            &BigNum::frombytes(&hex::decode("11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71e").unwrap()),
+            &BigNum::frombytes(&hex::decode("08ab05f8bdd54cde190937e76bc3e447cc27c3d6fbd7063fcd104635a790520c0a395554e5c6aaaa9354ffffffffe38d").unwrap())
         ),
         FP2::new_bigs(
-            &BIG::frombytes(&hex::decode("171d6541fa38ccfaed6dea691f5fb614cb14b4e7f4e810aa22d6108f142b85757098e38d0f671c7188e2aaaaaaaa5ed1").unwrap()),
-            &BIG::new()
+            &BigNum::frombytes(&hex::decode("171d6541fa38ccfaed6dea691f5fb614cb14b4e7f4e810aa22d6108f142b85757098e38d0f671c7188e2aaaaaaaa5ed1").unwrap()),
+            &BigNum::new()
         )
     ];
-    pub static ref XDEN: [FP2; 3] = [
+    pub static ref XDEN: [FP2; 4] = [
         FP2::new_bigs(
-            &BIG::new(),
-            &BIG::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa63").unwrap())
+            &BigNum::new(),
+            &BigNum::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa63").unwrap())
         ),
         FP2::new_bigs(
-            &BIG::frombytes(&hex::decode("0c").unwrap()),
-            &BIG::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa9f").unwrap())
+            &BigNum::new_int(12),
+            &BigNum::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa9f").unwrap())
         ),
         FP2::new_int(1),
+        FP2::new(),
     ];
     pub static ref YNUM: [FP2; 4] = [
         FP2::new_bigs(
-            &BIG::frombytes(&hex::decode("1530477c7ab4113b59a4c18b076d11930f7da5d4a07f649bf54439d87d27e500fc8c25ebf8c92f6812cfc71c71c6d706").unwrap()),
-            &BIG::frombytes(&hex::decode("1530477c7ab4113b59a4c18b076d11930f7da5d4a07f649bf54439d87d27e500fc8c25ebf8c92f6812cfc71c71c6d706").unwrap())
+            &BigNum::frombytes(&hex::decode("1530477c7ab4113b59a4c18b076d11930f7da5d4a07f649bf54439d87d27e500fc8c25ebf8c92f6812cfc71c71c6d706").unwrap()),
+            &BigNum::frombytes(&hex::decode("1530477c7ab4113b59a4c18b076d11930f7da5d4a07f649bf54439d87d27e500fc8c25ebf8c92f6812cfc71c71c6d706").unwrap())
         ),
         FP2::new_bigs(
-            &BIG::new(),
-            &BIG::frombytes(&hex::decode("5c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97be").unwrap())
+            &BigNum::new(),
+            &BigNum::frombytes(&hex::decode("05c759507e8e333ebb5b7a9a47d7ed8532c52d39fd3a042a88b58423c50ae15d5c2638e343d9c71c6238aaaaaaaa97be").unwrap())
         ),
         FP2::new_bigs(
-            &BIG::frombytes(&hex::decode("11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71c").unwrap()),
-            &BIG::frombytes(&hex::decode("8ab05f8bdd54cde190937e76bc3e447cc27c3d6fbd7063fcd104635a790520c0a395554e5c6aaaa9354ffffffffe38f").unwrap())
+            &BigNum::frombytes(&hex::decode("11560bf17baa99bc32126fced787c88f984f87adf7ae0c7f9a208c6b4f20a4181472aaa9cb8d555526a9ffffffffc71c").unwrap()),
+            &BigNum::frombytes(&hex::decode("08ab05f8bdd54cde190937e76bc3e447cc27c3d6fbd7063fcd104635a790520c0a395554e5c6aaaa9354ffffffffe38f").unwrap())
         ),
         FP2::new_bigs(
-            &BIG::frombytes(&hex::decode("124c9ad43b6cf79bfbf7043de3811ad0761b0f37a1e26286b0e977c69aa274524e79097a56dc4bd9e1b371c71c718b10").unwrap()),
-            &BIG::new()
+            &BigNum::frombytes(&hex::decode("124c9ad43b6cf79bfbf7043de3811ad0761b0f37a1e26286b0e977c69aa274524e79097a56dc4bd9e1b371c71c718b10").unwrap()),
+            &BigNum::new()
         )
     ];
     pub static ref YDEN: [FP2; 4] = [
         FP2::new_bigs(
-            &BIG::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa8fb").unwrap()),
-            &BIG::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa8fb").unwrap())
+            &BigNum::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa8fb").unwrap()),
+            &BigNum::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa8fb").unwrap())
         ),
         FP2::new_bigs(
-            &BIG::new(),
-            &BIG::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa9d3").unwrap())
+            &BigNum::new(),
+            &BigNum::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffa9d3").unwrap())
         ),
         FP2::new_bigs(
-            &BIG::frombytes(&hex::decode("12").unwrap()),
-            &BIG::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa99").unwrap())
+            &BigNum::new_int(18),
+            &BigNum::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaa99").unwrap())
         ),
-        FP2::new_int(1)
+        FP2::new_ints(1, 0)
     ];
 }
 
@@ -767,12 +768,12 @@ pub fn optimised_swu_g2(msg: &[u8], domain: u64) -> GroupG2 {
     let t0 = FP2::new_bigs(&t00, &t01);
 
     // Convert to point on 3-Isogeny curve
-    let (x, y, z) = unoptimized_iso3_hash_to_point(&t0);
+    let (x, y, z) = optimized_iso3_hash_to_point(&t0);
 
     // Convert from 3-Isogeny curve to G2 point
-    iso3_to_g2(x, y, z)
+    iso3_to_g2(&x, &y, &z)
 }
-pub fn unoptimized_iso3_hash_to_point(t: &FP2) -> (FP2, FP2, FP2) {
+pub fn optimized_iso3_hash_to_point(t: &FP2) -> (FP2, FP2, FP2) {
     // Setup required variables
     let mut t2 = t.clone(); // t
     t2.sqr(); // t^2 (store for later)
@@ -782,36 +783,60 @@ pub fn unoptimized_iso3_hash_to_point(t: &FP2) -> (FP2, FP2, FP2) {
     common.sqr(); // e^2 + t^4
     common.add(&et2); // common = e^2 * t^4 + e * t^2
 
+    // Numerator (x0)
+    let mut x_numerator = common.clone();
+    x_numerator.add(&FP2::new_ints(1, 0));
+    x_numerator.mul(&ISO3_B2); // b * (e^2 * t^4 + e * t^2 + 1)
+
+    // Denominator (x0)
+    let mut x_denominator: FP2;
     // Deal with case where e^2 * t^4 + e * t^2 == 0
-    let mut x0: FP2;
-    let mut z: FP2;
     if common.iszilch() {
-        x0 = ISO3_B2.clone(); // x0 = b
-        let mut denominator = ISO3_E2.clone();
-        denominator.mul(&ISO3_A2); // denominator = e * a
-
-        z = denominator.clone();
-        // OPTIMIZATION: Consider faster method of inverse here
-        denominator.inverse(); // denominator = 1 / (e * a)
-
-        x0.mul(&denominator);
+        x_denominator = ISO3_E2.clone();
+        x_denominator.mul(&ISO3_A2); // denominator = e * a
     } else {
-        // Numerator (x0)
-        x0 = common.clone();
-        x0.add(&FP2::new_ints(1, 0));
-        x0.mul(&ISO3_B2); // b * (e^2 * t^4 + e * t^2 + 1)
-
-        // Denominator
-        let mut denominator = common.clone();
-        denominator.mul(&ISO3_A2);
-
-        z = denominator.clone();
-        // OPTIMIZATION: Consider faster method of inverse here
-        denominator.inverse();
-
-        x0.mul(&denominator);
+        x_denominator = common.clone();
+        x_denominator.mul(&ISO3_A2);
+        x_denominator.neg();
+        x_denominator.norm(); // TODO: Check this
     }
 
+    // Kirk Checks
+    println!("Num: {}", x_numerator.tostring());
+    println!("Den: {}\n", x_denominator.tostring());
+
+    // u = num^3 + a * num * den^2 + b * den^3
+    // v = den^3
+    let mut u = x_numerator.clone();
+    u.sqr(); // num^2
+    u.mul(&x_numerator); // num^3
+
+    println!("n^3: {}", u.tostring());
+
+    let mut tmp1 = x_denominator.clone();
+    tmp1.sqr(); // den^2
+    let mut tmp2 = x_numerator.clone();
+    tmp2.mul(&tmp1); // num * den^2
+    tmp2.mul(&ISO3_A2); // a * num * den^2
+
+    println!("{}", tmp2.tostring());
+    u.add(&tmp2); // num^3 + a * num * den^2
+
+    tmp1.mul(&x_denominator); // den^3
+    let mut v = tmp1.clone(); // den^3
+    tmp1.mul(&ISO3_B2); // b * den^3
+
+    println!("bd^3, {}", tmp1.tostring());
+    u.add(&tmp1); // num^3 + a * num * den^2 + b * den^3
+
+
+    // Kirk Checks
+    println!("u: {}", u.tostring()); // Note this matches they just haven't called reduce()
+    println!("v: {}\n", v.tostring());
+
+    // TODO: write sqrt division
+    (u.clone(), v.clone(), x_denominator)
+    /*
     // Calculate g(x0) = x^3 + ax + b
     let mut gx0 = x0.clone();
     gx0.sqr();
@@ -820,6 +845,9 @@ pub fn unoptimized_iso3_hash_to_point(t: &FP2) -> (FP2, FP2, FP2) {
     ax0.mul(&ISO3_A2);
     gx0.add(&ax0);
     gx0.add(&ISO3_B2);
+
+    println!("g(x0): {}\n", gx0.tostring());
+
 
     let mut y0 = gx0.clone();
     if y0.sqrt() {
@@ -852,15 +880,65 @@ pub fn unoptimized_iso3_hash_to_point(t: &FP2) -> (FP2, FP2, FP2) {
         println!("Square root of x1 failed");
     }
 
-    (x1, gx1, z)
+    (x1, gx1, FP2::new_int(1))
+    */
 }
 
-pub fn iso3_to_g2(x: FP2, y: FP2, z: FP2) -> GroupG2 {
-    // TODO: write iso3 function
+// Take a set (x, y, z) on the ISO-3 curve and map it to a GroupG2 point
+pub fn iso3_to_g2(x: &FP2, y: &FP2, z: &FP2) -> GroupG2 {
+    let polynomials_coefficients: [&[FP2; 4]; 4] = [&*XNUM, &*XDEN, &*YNUM, &*YDEN];
+    let mut z_vals = z_powers(&z);
 
+    // x-num, x-den, y-num, y-dom
+    let mut mapped_vals: [FP2; 4] = [FP2::new(), FP2::new(), FP2::new(), FP2::new()];
 
-    // TODO: remove when function is complete
-    GroupG2::new_fp2s(&x, &y)
+    // Horner caculation for evaluating polynomials
+    for (i, polynomial) in polynomials_coefficients[..].iter().enumerate() {
+        mapped_vals[i] = polynomial[polynomial.len() - 1].clone();
+        for (z_index, value) in polynomial.iter().rev().skip(1).enumerate() {
+            // Each value is a specific k for a polynomial
+            let mut zk = value.clone();
+            zk.mul(&z_vals[z_index]); // k(z_index) * z^(2 * (3 - z_index))
+
+            mapped_vals[i].mul(&x);
+            mapped_vals[i].add(&zk);
+        }
+    }
+
+    // y-num multiplied by y
+    mapped_vals[2].mul(&y);
+    // y-den multiplied by z^3
+    mapped_vals[3].mul(&z_vals[0]);
+    mapped_vals[3].mul(&z);
+
+    let mut z_g2 = mapped_vals[1].clone(); // x-den
+    z_g2.mul(&mapped_vals[3]); // x-den * y-den
+
+    let mut x_g2 = mapped_vals[0].clone(); // x-num
+    x_g2.mul(&z_g2); // x-num * x-den * y-den
+    x_g2.mul(&mapped_vals[3]); // x-num * x-den * y-den^2
+
+    let mut y_g2 = z_g2.clone(); // x-den * y-den
+    y_g2.sqr(); // x-den^2 * y-den^2
+    y_g2.mul(&mapped_vals[2]); // y-num * x-den^2 * y-den^2
+    y_g2.mul(&mapped_vals[1]); // y-num * x-den^3 * y-den^2
+
+    // TODO: Improve this function in ECP2
+    GroupG2::new_jacobian(x_g2, y_g2, z_g2)
+}
+
+// Returns z^2, z^4, z^6
+pub fn z_powers(z: &FP2) -> [FP2; 3] {
+    let mut two = z.clone();
+    two.sqr();
+
+    let mut four = two.clone();
+    four.sqr();
+
+    let mut six = four.clone();
+    six.mul(&two);
+
+    [two, four, six]
 }
 
 // Setup the 4 roots of unity
@@ -1127,32 +1205,77 @@ mod tests {
         }
     }
 
-    // TODO: Delete - Temp test to print certain values
     #[test]
-    pub fn print_quatics() {
-        /*
-        let bytes = hex::decode("02c4a7244a026bd3e305cc456ad9e235ed85f8b53954258ec8186bb3d4eccef7c4ee7b8d4b9e063a6c88d0aa3e03ba01").unwrap();
-        let big = BIG::frombytes(&bytes);
-        let mut fp2 = FP2::new_big(&big);
-        fp2.sqr();
-        fp2.norm();
-        println!("{:?}", fp2.tostring());
-        fp2.sqr();
-        fp2.norm();
-        println!("{:?}", fp2.tostring());
-        fp2.sqr();
-        fp2.norm();
-        println!("{:?}", fp2.tostring());
-        */
-        let mut e = ISO3_E2.clone();
-        e.sqr();
-        e.mul(&ISO3_E2);
-        println!("{:?}", e.tostring());
-        let mut neg_1 = FP2::new_ints(0, 1);
-        neg_1.inverse();
-        neg_1.sqrt();
-        e.mul(&neg_1);
-        e.sqrt();
-        println!("{:?}", e.tostring());
+    pub fn print_iso3_to_g2() {
+        // Input hash from C impl input "asdf" + enter + ctrlD
+        let xa = BigNum::frombytes(&hex::decode("19a0eea654772cf91af8bc774ae63c3762d0f2814a681526d5095571e1d8d5717bbbe01eab2b80faf14973eb0fb8846c").unwrap());
+        let xb = BigNum::frombytes(&hex::decode("08b90c62285e373fa38e58d795cb9bc878a864f65c0c76b6a736486021387fc3e9a8da97f2e3ff17afead59075403eb2").unwrap());
+        let x = FP2::new_bigs(&xa, &xb);
+        let ya = BigNum::frombytes(&hex::decode("0f74a5493917efd72c1b4611f57748c16a93461a15cccb05f52533e1457195890423b8992e4fa2abe0f201b7caa74d92").unwrap());
+        let yb = BigNum::frombytes(&hex::decode("1900fd144ffcc9db14d1ee12030c9a7bc95991ce2fd98b915de311b0eb5f777445f9d3814699d23a2c1da038df576017").unwrap());
+        let y = FP2::new_bigs(&ya, &yb);
+        let za = BigNum::frombytes(&hex::decode("11b186828e105968c0e85dc4c2ab515f94f6e4b56ff24a8d3535b6b9f8b72ac11993cdcde1e346a648fdc785ff8bdd92").unwrap());
+        let zb = BigNum::frombytes(&hex::decode("083d7b6d2e30743bc03443f916fbff5cab62b170ef35061faa228a4f31e6b9d2c569ae953714bef3afb51a658ed328e0").unwrap());
+        let z = FP2::new_bigs(&za, &zb);
+
+        let mut a = iso3_to_g2(&x, &y, &z);
+
+        a = multiply_g2_cofactor(&mut a);
+        let mut x = a.getpx();
+        let mut y = a.getpy();
+        let mut z = a.getpz();
+        println!("X output: {}", x.tostring());
+        println!("Y output: {}", y.tostring());
+        println!("Z output: {}", z.tostring());
+        println!("Multiplied G2 point: {}", a.tostring());
+
+
+        let xa = BigNum::frombytes(&hex::decode("11b8bb9322083941a332f34184e2d26fa4ea589379054dbdbb8cc6ab95ea02d7c4d8f3d35eaa7675257fa170a6adc8a1").unwrap());
+        let xb = BigNum::frombytes(&hex::decode("00208a8b0c26545ec4306d478ccbc7d0474bf740e2f168e2e77db45569bd808f5075d4fe847e814bbd0c234eaa41a6a7").unwrap());
+        let x = FP2::new_bigs(&xa, &xb);
+        let ya = BigNum::frombytes(&hex::decode("10a756ea25d63c6d9cc96312bbce661c526d431a7352d4e56847d30b0d01ea989343988cd06ee2feccadf5f89659de38").unwrap());
+        let yb = BigNum::frombytes(&hex::decode("0f7c103026e124e7ca0d9f1d55793cc6029238fafadb1904df72f4c997b8a0e36737a1ded996afb3ebc348a6c4335691").unwrap());
+        let y = FP2::new_bigs(&ya, &yb);
+        let za = BigNum::frombytes(&hex::decode("126e80bfcc6a715aa21f6914c6fae8a0867ec447479db727f951d5e391a29aaa5be922db2259ac8de9ef0b8c9f233a22").unwrap());
+        let zb = BigNum::frombytes(&hex::decode("0c38ff00b36ee38aa285e817ffed12b0382dbe8948e44c894567d194f3632106776c3506d6d96820b8121fab8cac37b1").unwrap());
+        let z = FP2::new_bigs(&za, &zb);
+
+        let mut check = GroupG2::new_jacobian(x, y, z);
+        println!("Check G2 point: {}", check.tostring());
     }
+
+    #[test]
+    pub fn print_swu() {
+        // Input hash from C impl input "asdf" + enter + ctrlD
+        let ta = BigNum::frombytes(&hex::decode("083c4b725ea72721fd133b1a64fe74fe493734baa5c238c8eb8ff2b47b17eb1fe764fb9aca8b57294dc56652b108292f").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("15ebf945b099fe69931f911ed8196267a4ee284617112f6968d97dc03c224a67e3f3ee14e02bb277142fa4b8d7cb421d").unwrap());
+        let t = FP2::new_bigs(&ta, &tb);
+
+        let (mut x, mut y, mut z) = optimized_iso3_hash_to_point(&t);
+        println!("X: {}", x.tostring());
+        println!("Y: {}", y.tostring());
+        println!("Z: {}\n", z.tostring());
+
+        let mut res = iso3_to_g2(&x, &y, &z);
+        res = multiply_g2_cofactor(&mut res);
+        println!("Res G2 point: {}", res.tostring());
+        let mut rhs = ECP2::rhs(&mut res.getx());
+        let mut y2 = FP2::new_copy(&res.gety());
+        y2.sqr();
+        println!("{}", y2.equals(&mut rhs));
+
+        let xa = BigNum::frombytes(&hex::decode("11b8bb9322083941a332f34184e2d26fa4ea589379054dbdbb8cc6ab95ea02d7c4d8f3d35eaa7675257fa170a6adc8a1").unwrap());
+        let xb = BigNum::frombytes(&hex::decode("00208a8b0c26545ec4306d478ccbc7d0474bf740e2f168e2e77db45569bd808f5075d4fe847e814bbd0c234eaa41a6a7").unwrap());
+        let x = FP2::new_bigs(&xa, &xb);
+        let ya = BigNum::frombytes(&hex::decode("10a756ea25d63c6d9cc96312bbce661c526d431a7352d4e56847d30b0d01ea989343988cd06ee2feccadf5f89659de38").unwrap());
+        let yb = BigNum::frombytes(&hex::decode("0f7c103026e124e7ca0d9f1d55793cc6029238fafadb1904df72f4c997b8a0e36737a1ded996afb3ebc348a6c4335691").unwrap());
+        let y = FP2::new_bigs(&ya, &yb);
+        let za = BigNum::frombytes(&hex::decode("126e80bfcc6a715aa21f6914c6fae8a0867ec447479db727f951d5e391a29aaa5be922db2259ac8de9ef0b8c9f233a22").unwrap());
+        let zb = BigNum::frombytes(&hex::decode("0c38ff00b36ee38aa285e817ffed12b0382dbe8948e44c894567d194f3632106776c3506d6d96820b8121fab8cac37b1").unwrap());
+        let z = FP2::new_bigs(&za, &zb);
+
+        let mut check = GroupG2::new_jacobian(x, y, z);
+        println!("Check G2 point: {}", check.tostring());
+    }
+
 }
