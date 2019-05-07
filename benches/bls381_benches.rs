@@ -89,19 +89,31 @@ fn compression_public_key_bigs(c: &mut Criterion) {
 }
 
 fn signing(c: &mut Criterion) {
-    let keypair = Keypair::random();
-    let sk = keypair.sk;
-    let pk = keypair.pk;
-
     let msg = "Some msg";
     let domain = 42;
-    let sig = Signature::new(&msg.as_bytes(), domain, &sk);
+
+    let keypair = Keypair::random();
+    let pk = keypair.pk;
+    let sk = keypair.sk;
+
+    let mut pks = vec![pk; 100];
+    let mut sks = vec![sk.clone(); 100];
+    let mut sigs = vec![Signature::new(&msg.as_bytes(), domain, &sk); 100];
+    for i in 0..100 {
+        let keypair = Keypair::random();
+        pks[i] = keypair.pk;
+        sks[i] = keypair.sk;
+        sigs[i] = Signature::new(&msg.as_bytes(), domain, &sks[i as usize]);
+    }
+
 
     c.bench(
         "signing",
-        Benchmark::new("Create a Signature", move |b| {
+        Benchmark::new("Create 100 Signature", move |b| {
             b.iter(|| {
-                black_box(Signature::new(&msg.as_bytes(), domain, &sk));
+                for i in 0..100 {
+                    black_box(Signature::new(&msg.as_bytes(), i, &sks[i as usize]));
+                }
             })
         })
         .sample_size(10),
@@ -109,9 +121,11 @@ fn signing(c: &mut Criterion) {
 
     c.bench(
         "signing",
-        Benchmark::new("Verify a Signature", move |b| {
+        Benchmark::new("Verify 100 Signature", move |b| {
             b.iter(|| {
-                black_box(sig.verify(&msg.as_bytes(), domain, &pk));
+                for i in 0..100 {
+                    black_box(sigs[i as usize].verify(&msg.as_bytes(), domain, &pks[i as usize]));
+                }
             })
         })
         .sample_size(10),

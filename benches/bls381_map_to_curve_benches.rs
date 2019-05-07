@@ -3,7 +3,7 @@ extern crate bls_aggregates;
 extern crate criterion;
 extern crate hex;
 
-use self::amcl::{bls381 as BLSCurve};
+use self::amcl::bls381 as BLSCurve;
 use bls_aggregates::*;
 use criterion::{black_box, criterion_group, criterion_main, Benchmark, Criterion};
 use BLSCurve::big::BIG;
@@ -81,6 +81,18 @@ fn g2(c: &mut Criterion) {
 
     c.bench(
         "hash_to_g2",
+        Benchmark::new("Optimised SWU x100", move |b| {
+            b.iter(|| {
+                for i in 0..100 {
+                    black_box(optimised_sw_g2(&msg, i));
+                }
+            })
+        })
+        .sample_size(10),
+    );
+
+    c.bench(
+        "hash_to_g2",
         Benchmark::new("Fouque Tibouchi Twice x100", move |b| {
             b.iter(|| {
                 for i in 0..100 {
@@ -90,11 +102,19 @@ fn g2(c: &mut Criterion) {
         })
         .sample_size(10),
     );
+
+    c.bench(
+        "hash_to_g2",
+        Benchmark::new("Optimised SWU Twice x100", move |b| {
+            b.iter(|| {
+                for i in 0..100 {
+                    black_box(optimised_sw_g2_twice(&msg, i));
+                }
+            })
+        })
+        .sample_size(10),
+    );
 }
 
-criterion_group!(
-    benches,
-    g1,
-    g2,
-);
+criterion_group!(benches, g1, g2,);
 criterion_main!(benches);
