@@ -114,6 +114,7 @@ impl PublicKey {
 
         let mut result: Vec<u8> = vec![];
         let mut bytes = [0 as u8; 48];
+        self.point.affine();
         self.point.getx().tobytes(&mut bytes);
         result.extend_from_slice(&bytes);
         self.point.gety().tobytes(&mut bytes);
