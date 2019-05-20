@@ -28,9 +28,13 @@ impl SecretKey {
         if bytes.len() != MOD_BYTE_SIZE {
             return Err(DecodeError::IncorrectSize);
         }
-        Ok(SecretKey {
-            x: BigNum::frombytes(bytes),
-        })
+
+        // Ensure key is less than curve order
+        let mut x = BigNum::frombytes(bytes);
+        let curve_order = BigNum::new_ints(&CURVE_ORDER);
+        x.rmod(&curve_order);
+
+        Ok(SecretKey { x })
     }
 
     /// Export the SecretKey to bytes.
