@@ -28,13 +28,9 @@ impl SecretKey {
         if bytes.len() != MOD_BYTE_SIZE {
             return Err(DecodeError::IncorrectSize);
         }
-
-        // Ensure key is less than curve order
-        let mut x = BigNum::frombytes(bytes);
-        let curve_order = BigNum::new_ints(&CURVE_ORDER);
-        x.rmod(&curve_order);
-
-        Ok(SecretKey { x })
+        Ok(SecretKey {
+            x: BigNum::frombytes(bytes),
+        })
     }
 
     /// Export the SecretKey to bytes.
@@ -114,7 +110,6 @@ impl PublicKey {
 
         let mut result: Vec<u8> = vec![];
         let mut bytes = [0 as u8; 48];
-        self.point.affine();
         self.point.getx().tobytes(&mut bytes);
         result.extend_from_slice(&bytes);
         self.point.gety().tobytes(&mut bytes);
@@ -132,6 +127,7 @@ impl PublicKey {
         for byte in bytes {
             if *byte != 0 {
                 nil = false;
+                break;
             }
         }
         if nil {

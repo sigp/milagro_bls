@@ -32,12 +32,6 @@ pub const G2_BYTE_SIZE: usize = (4 * MODBYTES) as usize;
 // Byte size of secret key
 pub const MOD_BYTE_SIZE: usize = bls381_MODBYTES;
 
-pub const Q: [u8; 48] = [
-    26, 1, 17, 234, 57, 127, 230, 154, 75, 27, 167, 182, 67, 75, 172, 215, 100, 119, 75, 132, 243,
-    133, 18, 191, 103, 48, 210, 160, 246, 176, 246, 36, 30, 171, 255, 254, 177, 83, 255, 255, 185,
-    254, 255, 255, 255, 255, 170, 171,
-];
-
 // G2_Cofactor as arrays of i64
 pub const G2_COFACTOR_HIGH: [Chunk; NLEN] = [
     0x0153_7E29_3A66_91AE,
@@ -199,7 +193,7 @@ pub fn compress_g1(g1: &mut GroupG1) -> Vec<u8> {
     result.copy_from_slice(&g1_bytes[1..=MODBYTES]); // byte[0] is Milagro formatting
 
     // Set flags
-    let a_flag = calc_a_flag(&mut BigNum::frombytes(&g1_bytes[MODBYTES + 1..]));
+    let a_flag = calc_a_flag(&BigNum::frombytes(&g1_bytes[MODBYTES + 1..]));
     result[0] += u8::pow(2, 5) * a_flag; // set a_flag
     result[0] += u8::pow(2, 7); // c_flag
 
@@ -251,7 +245,7 @@ pub fn decompress_g1(g1_bytes: &[u8]) -> Result<GroupG1, DecodeError> {
     }
 
     // Confirm a_flag
-    let calculated_a_flag = calc_a_flag(&mut point.gety());
+    let calculated_a_flag = calc_a_flag(&point.gety());
     if calculated_a_flag != a_flag {
         point.neg();
     }
@@ -289,7 +283,7 @@ pub fn compress_g2(g2: &mut GroupG2) -> Vec<u8> {
     result.extend_from_slice(x_real);
 
     // Set flags
-    let a_flag = calc_a_flag(&mut BigNum::frombytes(&g2_bytes[MODBYTES * 3..]));
+    let a_flag = calc_a_flag(&BigNum::frombytes(&g2_bytes[MODBYTES * 3..]));
     result[0] += u8::pow(2, 5) * a_flag;
     result[0] += u8::pow(2, 7); // c_flag
 
@@ -344,7 +338,7 @@ pub fn decompress_g2(g2_bytes: &[u8]) -> Result<GroupG2, DecodeError> {
     }
 
     // Confirm a_flag matches given flag
-    let calculated_a_flag = calc_a_flag(&mut point.gety().getb());
+    let calculated_a_flag = calc_a_flag(&point.gety().getb());
     if calculated_a_flag != a_flag {
         point.neg();
     }
@@ -352,32 +346,20 @@ pub fn decompress_g2(g2_bytes: &[u8]) -> Result<GroupG2, DecodeError> {
     Ok(point)
 }
 
-// Takes either y or y_im and calculates if a_flag is 1 or 0
+// Takes a y-value and calculates if a_flag is 1 or 0
 //
 // a_flag = floor((y * 2)  / q)
-pub fn calc_a_flag(y: &mut BigNum) -> u8 {
-    let mut y_bytes = vec![0; MODBYTES];
-    let mut results = vec![0; MODBYTES];
-    y.tobytes(&mut y_bytes);
+pub fn calc_a_flag(y: &BigNum) -> u8 {
+    let mut y2 = *y;
+    y2.imul(2);
+    let q = BigNum::new_ints(&rom::MODULUS);
 
-    // Multiply y by two with carrying
-    let mut carry: u64 = 0;
-    for (i, y_byte) in y_bytes.iter().enumerate() {
-        let res = u64::from(*y_byte) * 2 + carry;
-        carry = res - res % u64::pow(2, 8);
-        results[i] = (res % u64::pow(2, 8)) as u8;
+    // if y * 2 < q => floor(y * 2 / q) = 0
+    if BigNum::comp(&y2, &q) < 0 {
+        return 0;
     }
 
-    // If y * 2 > q -> (y * 2) / q == 1
-    for (i, res) in results.iter().enumerate() {
-        if *res > Q[i] {
-            return 1;
-        } else if *res < Q[i] {
-            return 0;
-        }
-    }
-
-    1 // Should not be reached as q is prime -> 2 * y != q
+    1
 }
 
 #[cfg(test)]
