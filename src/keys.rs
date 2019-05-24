@@ -127,6 +127,7 @@ impl PublicKey {
         for byte in bytes {
             if *byte != 0 {
                 nil = false;
+                break;
             }
         }
         if nil {
