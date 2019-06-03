@@ -507,6 +507,8 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
+    // Test vectors use Keccak whilst this implementation uses SHA2.
+    #[should_panic]
     fn case02_message_hash_G2_compressed() {
         // Run tests from test_bls.yml
         let mut file = {
