@@ -3,7 +3,7 @@ name = "bls-aggregates"
 version = "0.7.0"
 authors = ["Lovesh Harchandani <lovesh.bond@gmail.com>"]
 description = "Various signature schemes. BLS, MuSig"
-license = "MIT/Apache-2.0"
+license = "Apache-2.0"
 
 [[bench]]
 name = "bls381_benches"
