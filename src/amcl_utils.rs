@@ -67,6 +67,7 @@ pub const G2_COFACTOR_SHIFT: [Chunk; NLEN] = [
 ];
 
 lazy_static! {
+    // Generators
     pub static ref GENERATORG1: GroupG1 = GroupG1::generator();
     pub static ref GENERATORG2: GroupG2 = GroupG2::generator();
 
@@ -144,6 +145,23 @@ lazy_static! {
         ),
         FP2::new_ints(1, 0)
     ];
+
+    // Psi Constants for clearing G2 Cofactor
+    pub static ref PSI_INVERSES_W_SQR_CUBE: FP2 = FP2::new_bigs(
+        &BigNum::frombytes(&hex::decode("0d0088f51cbff34d258dd3db21a5d66bb23ba5c279c2895fb39869507b587b120f55ffff58a9ffffdcff7fffffffd556").unwrap()),
+        &BigNum::frombytes(&hex::decode("0d0088f51cbff34d258dd3db21a5d66bb23ba5c279c2895fb39869507b587b120f55ffff58a9ffffdcff7fffffffd555").unwrap()));
+    pub static ref PSI_QI_X: FP2 = FP2::new_bigs(
+        &BigNum::frombytes(&hex::decode("1a0111ea397fe699ec02408663d4de85aa0d857d89759ad4897d29650fb85f9b409427eb4f49fffd8bfd00000000aaad").unwrap()),
+        &BigNum::new());
+    pub static ref PSI_QI_Y: FP2 = FP2::new_bigs(
+        &BigNum::frombytes(&hex::decode("06af0e0437ff400b6831e36d6bd17ffe48395dabc2d3435e77f76e17009241c5ee67992f72ec05f4c81084fbede3cc09").unwrap()),
+        &BigNum::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9fee5feee15712c").unwrap()));
+    pub static ref PSI_TWIST_CORRECTION_X: FP2 = FP2::new_bigs(
+        &BigNum::frombytes(&hex::decode("1a0111ea397fe699ec02408663d4de85aa0d857d89759ad4897d29650fb85f9b409427eb4f49fffd8bfd00000000aaad").unwrap()),
+        &BigNum::frombytes(&hex::decode("0ed7b3fbb2da18cd59a3a5a9733c32ae17e4523c0336bd90a930f9afc887568028fc8a5fbdb5846bbaf05059a723cb9d").unwrap()));
+    pub static ref PSI_TWIST_CORRECTION_Y: FP2 = FP2::new_bigs(
+        &BigNum::frombytes(&hex::decode("135203e60180a68ee2e9c448d77a2cd91c3dedd930b1cf60ef396489f61eb45e304466cf3e67fa0af1ee7b04121bdea2").unwrap()),
+        &BigNum::frombytes(&hex::decode("06af0e0437ff400b6831e36d6bd17ffe48395dabc2d3435e77f76e17009241c5ee67992f72ec05f4c81084fbede3cc09").unwrap()));
 }
 
 // Take given message and domain and convert it to GroupG2 point
@@ -169,11 +187,226 @@ pub fn cmp_fp2(num1: &mut FP2, num2: &mut FP2) -> isize {
     result
 }
 
+// Clear the G2 cofactor
+//
+// This is a wrapper function to enable easy switching between multiplication by cofctor
+// and
+pub fn clear_g2_cofactor(point: &mut GroupG2) -> GroupG2 {
+    clear_g2_psi(point)
+}
+
+// Clearing the G2 cofactor via Psi.
+//
+// See https://eprint.iacr.org/2017/419 Section 4.1
+pub fn clear_g2_psi(point: &mut GroupG2) -> GroupG2 {
+    let mut point2 = point.clone();
+    point2.add(&point); // 2P
+
+    let mut x = point.getpx();
+    let mut y = point.getpy();
+    let mut z = point.getpz();
+    println!("X point: {}", x.tostring());
+    println!("Y point: {}", y.tostring());
+    println!("Z point: {}\n", z.tostring());
+
+    let mut temp0 = psi_addition_chain(&point); // -xP
+
+    let mut x = temp0.getpx();
+    let mut y = temp0.getpy();
+    let mut z = temp0.getpz();
+    println!("X temp0 -xP: {}", x.tostring());
+    println!("Y temp0 -xP: {}", y.tostring());
+    println!("Z temp0 -xP: {}\n", z.tostring());
+
+
+    temp0.add(&point); // (-x + 1) P
+    let mut temp1 = point.clone(); // -P
+    let temp2 = psi(&temp1); // - psi(P)
+    temp0.add(&temp2); // (-x + 1) P + - psi(P)
+    let mut temp3 = psi_addition_chain(&temp0); // (x^2 - x) P + x psi(P)
+    temp3.add(&temp2); // (x^2 - x) P + (x - 1) psi(P)
+    temp1.add(&temp3); // (x^2 - x - 1) P + (x - 1) psi(P)
+    point2 = psi(&point2); // psi(2P)
+    point2 = psi(&point2); // psi(psi(2P))
+    temp1.add(&point2); // (x^2 - x - 1) P + (x - 1) psi(P) - psi(psi(2P))
+
+    temp1
+}
+
+// Returns -xP
+pub fn psi_addition_chain(point: &GroupG2) -> GroupG2 {
+    let mut x = point.clone();
+    let two = BigNum::new_int(2);
+
+    let mut check = point.clone();
+    check.affine();
+    let mut rhs = GroupG2::rhs(&mut check.getx());
+    let mut y2 = check.gety();
+    y2.sqr();
+    println!("y^2 {}", y2.tostring());
+    println!("rhs {}", rhs.tostring());
+
+
+    let mut check2 = check.clone();
+    let mut check3 = check.clone();
+    check2.dbl();
+    let mut check_x = check2.getpx();
+    let mut check_y = check2.getpy();
+    let mut check_z = check2.getpz();
+    println!("X dbl: {}", check_x.tostring());
+    println!("Y dbl: {}", check_y.tostring());
+    println!("Z dbl: {}\n", check_z.tostring());
+    check2.affine();
+    println!("Point dbl: {}\n", check2.tostring());
+
+    check3.add(&point);
+    check_x = check3.getpx();
+    check_y = check3.getpy();
+    check_z = check3.getpz();
+    println!("X add: {}", check_x.tostring());
+    println!("Y add: {}", check_y.tostring());
+    println!("Z add: {}\n", check_z.tostring());
+    check3.affine();
+    println!("Point add: {}\n", check3.tostring());
+
+    check = check.mul(&two);
+    let mut check_x = check.getpx();
+    let mut check_y = check.getpy();
+    let mut check_z = check.getpz();
+    println!("X mul: {}", check_x.tostring());
+    println!("Y mul: {}", check_y.tostring());
+    println!("Z mul: {}\n", check_z.tostring());
+    check.affine();
+    println!("Point mul: {}\n", check.tostring());
+
+
+
+
+    x.add(&point);
+    check_x = x.getpx();
+    check_y = x.getpy();
+    check_z = x.getpz();
+    println!("X chain first: {}", check_x.tostring());
+    println!("Y chain first: {}", check_y.tostring());
+    println!("Z chain first: {}\n", check_z.tostring());
+
+
+    x.add(&point); // 3
+    for _ in 0..2 {
+        x = x.mul(&two); // 12
+    }
+
+    let mut check_x = x.getpx();
+    let mut check_y = x.getpy();
+    let mut check_z = x.getpz();
+    println!("X chain 2: {}", check_x.tostring());
+    println!("Y chain 2: {}", check_y.tostring());
+    println!("Z chain 2: {}\n", check_z.tostring());
+
+    x.add(&point); // 13
+    for _ in 0..3 {
+        x = x.mul(&two); // 104
+    }
+
+    let mut check_x = x.getpx();
+    let mut check_y = x.getpy();
+    let mut check_z = x.getpz();
+    println!("X chain 3: {}", check_x.tostring());
+    println!("Y chain 3: {}", check_y.tostring());
+    println!("Z chain 3: {}\n", check_z.tostring());
+
+    x.add(&point); // 105
+    for _ in 0..9 {
+        x = x.mul(&two); // 53,760
+    }
+
+    let mut check_x = x.getpx();
+    let mut check_y = x.getpy();
+    let mut check_z = x.getpz();
+    println!("X chain 9: {}", check_x.tostring());
+    println!("Y chain 9: {}", check_y.tostring());
+    println!("Z chain 9: {}\n", check_z.tostring());
+
+    x.add(&point); // 53761
+    for _ in 0..32 {
+        x = x.mul(&two); // 230901736800256
+    }
+
+    let mut check_x = x.getpx();
+    let mut check_y = x.getpy();
+    let mut check_z = x.getpz();
+    println!("X chain 32: {}", check_x.tostring());
+    println!("Y chain 32: {}", check_y.tostring());
+    println!("Z chain 32: {}\n", check_z.tostring());
+
+    x.add(&point); // 230901736800257
+    for _ in 0..16 {
+        x = x.mul(&two); // 15132376222941577216
+    }
+
+    let mut check_x = x.getpx();
+    let mut check_y = x.getpy();
+    let mut check_z = x.getpz();
+    println!("X chain: {}", check_x.tostring());
+    println!("Y chain: {}", check_y.tostring());
+    println!("Z chain: {}\n", check_z.tostring());
+
+    x
+}
+
+// Psi
+pub fn psi(point: &GroupG2) -> GroupG2 {
+    let mut temp1 = point.getpz(); // Z
+    let mut temp0 = temp1.clone(); // Z
+    temp0.sqr(); // Z^2
+    temp1.mul(&temp0); // Z^3
+
+    // Calculate new x
+    let mut x = psi_x(point.getpx());
+    x.mul(&PSI_TWIST_CORRECTION_X);
+    x.times_i();
+    let mut temp0 = psi_x(temp0);
+
+    // Calculate new y
+    let mut y = psi_y(point.getpy());
+    y.mul(&PSI_TWIST_CORRECTION_Y);
+    y.times_i();
+    let temp1 = psi_y(temp1);
+
+    // Jacobian
+    let mut z = temp0.clone();
+    z.mul(&temp1); // new Z
+
+    x.mul(&temp1);
+    x.mul(&z); // new X
+
+    y.mul(&temp0);
+    temp0 = z.clone();
+    temp0.sqr(); // Z^2
+    y.mul(&temp0); // new Y
+
+    GroupG2::new_projective(x, y, z)
+}
+
+pub fn psi_x(mut x: FP2) -> FP2 {
+    x.mul(&PSI_INVERSES_W_SQR_CUBE);
+    x.mul(&PSI_QI_X);
+    x.neg();
+    x
+}
+
+pub fn psi_y(mut y: FP2) -> FP2 {
+    y.mul(&PSI_INVERSES_W_SQR_CUBE);
+    y.mul(&PSI_QI_Y);
+    y.neg();
+    y
+}
+
 // Multiply in parts by cofactor due to its size.
-pub fn multiply_g2_cofactor(curve_point: &mut GroupG2) -> GroupG2 {
+pub fn multiply_g2_cofactor(point: &mut GroupG2) -> GroupG2 {
     // Replicate curve_point for low part of multiplication
     let mut lowpart = GroupG2::new();
-    lowpart.copy(&curve_point);
+    lowpart.copy(&point);
 
     // Convert const arrays to BigNums
     let g2_cofactor_high = BigNum::new_ints(&G2_COFACTOR_HIGH);
@@ -181,11 +414,11 @@ pub fn multiply_g2_cofactor(curve_point: &mut GroupG2) -> GroupG2 {
     let g2_cofactor_low = BigNum::new_ints(&G2_COFACTOR_LOW);
 
     // Multiply high part, then low part, then add together
-    let mut curve_point = curve_point.mul(&g2_cofactor_high);
-    curve_point = curve_point.mul(&g2_cofactor_shift);
+    let mut point = point.mul(&g2_cofactor_high);
+    point = point.mul(&g2_cofactor_shift);
     let lowpart = lowpart.mul(&g2_cofactor_low);
-    curve_point.add(&lowpart);
-    curve_point
+    point.add(&lowpart);
+    point
 }
 
 // Provides a Keccak256 hash of given input.
@@ -633,7 +866,7 @@ pub fn hash_and_test_g2(msg: &[u8], domain: u64) -> GroupG2 {
     }
 
     // Multiply the point by given G2_Cofactor
-    multiply_g2_cofactor(&mut curve_point)
+    clear_g2_cofactor(&mut curve_point)
 }
 
 // Fouque Tibouchi Twice and add results on G2
@@ -659,7 +892,7 @@ pub fn fouque_tibouchi_twice_g2(msg: &[u8], domain: u64) -> GroupG2 {
     // t0 = t0 + t1
     t0.add(&t1);
 
-    multiply_g2_cofactor(&mut t0)
+    clear_g2_cofactor(&mut t0)
 }
 
 // Fouque Tibouchi G2
@@ -676,7 +909,7 @@ pub fn fouque_tibouchi_g2(msg: &[u8], domain: u64) -> GroupG2 {
     // Encode to G1
     let mut t0 = sw_encoding_g2(&mut t0);
 
-    multiply_g2_cofactor(&mut t0)
+    clear_g2_cofactor(&mut t0)
 }
 
 // Shallue-van de Woestijne encoding
@@ -779,7 +1012,7 @@ pub fn optimised_sw_g2(msg: &[u8], domain: u64) -> GroupG2 {
     let mut point = iso3_to_g2(&x, &y, &z);
 
     // Clear the cofactor
-    multiply_g2_cofactor(&mut point)
+    clear_g2_cofactor(&mut point)
 }
 
 // A hash-to-curve method by Wahby and Boneh
@@ -804,11 +1037,11 @@ pub fn optimised_sw_g2_twice(msg: &[u8], domain: u64) -> GroupG2 {
 
     // Convert from 3-Isogeny curve to G2 point
     let mut point0 = iso3_to_g2(&x0, &y0, &z0);
-    let mut point1 = iso3_to_g2(&x1, &y1, &z1);
+    let point1 = iso3_to_g2(&x1, &y1, &z1);
     point0.add(&point1);
 
     // Clear the cofactor
-    multiply_g2_cofactor(&mut point0)
+    clear_g2_cofactor(&mut point0)
 }
 
 // Take a hashed Fp2 value t and map it to a point in the ISO-3 curve
@@ -853,14 +1086,14 @@ pub fn hash_to_iso3_point(t: &FP2) -> (FP2, FP2, FP2) {
     u.add(&tmp2); // u = num^3 + a * num * den^2
 
     tmp1.mul(&x_denominator); // den^3
-    let mut v = tmp1.clone(); // den^3
+    let v = tmp1.clone(); // den^3
     tmp1.mul(&ISO3_B2); // b * den^3
     u.add(&tmp1); // u = num^3 + a * num * den^2 + b * den^3
 
     // sqrt_candidate(x0) = uv^7 * (uv^15)^((p-9)/16) *? root of unity
     let (success, mut sqrt_candidate) = sqrt_division_fp2(&u, &v);
 
-    if (success) {
+    if success {
         // negate y if t > (q - 1) / 2
         let mut q = BigNum::new_ints(&rom::MODULUS);
         q.dec(1);
@@ -951,7 +1184,7 @@ pub fn sqrt_division_fp2(u: &FP2, v: &FP2) -> (bool, FP2) {
 }
 
 // Take a set (x, y, z) on the ISO-3 curve and map it to a GroupG2 point
-pub fn iso3_to_g2(x: &FP2, y: &FP2, z: &FP2) -> GroupG2 {
+pub fn iso3_to_g2_jacobian(x: &FP2, y: &FP2, z: &FP2) -> GroupG2 {
     let polynomials_coefficients: [&[FP2; 4]; 4] = [&*XNUM, &*XDEN, &*YNUM, &*YDEN];
     let z_vals = z_powers(&z);
 
@@ -989,8 +1222,46 @@ pub fn iso3_to_g2(x: &FP2, y: &FP2, z: &FP2) -> GroupG2 {
     y_g2.mul(&mapped_vals[2]); // y-num * x-den^2 * y-den^2
     y_g2.mul(&mapped_vals[1]); // y-num * x-den^3 * y-den^2
 
-    // TODO: Improve this function in ECP2
-    GroupG2::new_jacobian(x_g2, y_g2, z_g2)
+    GroupG2::new_projective(x_g2, y_g2, z_g2) // Jacobian not standard projective
+}
+
+// Take a set (x, y, z) on the ISO-3 curve and map it to a GroupG2 point
+pub fn iso3_to_g2(x: &FP2, y: &FP2, z: &FP2) -> GroupG2 {
+    let polynomials_coefficients: [&[FP2; 4]; 4] = [&*XNUM, &*XDEN, &*YNUM, &*YDEN];
+    let z_vals = z_powers(&z);
+
+    // x-num, x-den, y-num, y-den
+    let mut mapped_vals: [FP2; 4] = [FP2::new(), FP2::new(), FP2::new(), FP2::new()];
+
+    // Horner caculation for evaluating polynomials
+    for (i, polynomial) in polynomials_coefficients[..].iter().enumerate() {
+        mapped_vals[i] = polynomial[polynomial.len() - 1].clone();
+        for (z_index, value) in polynomial.iter().rev().skip(1).enumerate() {
+            // Each value is a specific k for a polynomial
+            let mut zk = value.clone();
+            zk.mul(&z_vals[z_index]); // k(z_index) * z^(2 * (3 - z_index))
+
+            mapped_vals[i].mul(&x);
+            mapped_vals[i].add(&zk);
+        }
+    }
+
+    // y-num multiplied by y
+    mapped_vals[2].mul(&y);
+    // y-den multiplied by z^3
+    mapped_vals[3].mul(&z_vals[0]);
+    mapped_vals[3].mul(&z);
+
+    let mut z_g2 = mapped_vals[1].clone(); // x-den
+    z_g2.mul(&mapped_vals[3]); // x-den * y-den
+
+    let mut x_g2 = mapped_vals[0].clone(); // x-num
+    x_g2.mul(&mapped_vals[3]); // x-num * y-den
+
+    let mut y_g2 = mapped_vals[2].clone(); // y-num
+    y_g2.mul(&mapped_vals[1]); // y-num * x-den
+
+    GroupG2::new_projective(x_g2, y_g2, z_g2)
 }
 
 // Returns z^2, z^4, z^6
@@ -1286,7 +1557,7 @@ mod tests {
 
         let mut a = iso3_to_g2(&x, &y, &z);
 
-        a = multiply_g2_cofactor(&mut a);
+        a = clear_g2_cofactor(&mut a);
         let mut x = a.getpx();
         let mut y = a.getpy();
         let mut z = a.getpz();
@@ -1305,7 +1576,7 @@ mod tests {
         let zb = BigNum::frombytes(&hex::decode("0c38ff00b36ee38aa285e817ffed12b0382dbe8948e44c894567d194f3632106776c3506d6d96820b8121fab8cac37b1").unwrap());
         let z = FP2::new_bigs(&za, &zb);
 
-        let mut check = GroupG2::new_jacobian(x, y, z);
+        let mut check = GroupG2::new_projective(x, y, z);
         println!("Check G2 point: {}", check.tostring());
     }
 
@@ -1322,7 +1593,7 @@ mod tests {
         println!("Z: {}\n", z.tostring());
 
         let mut res = iso3_to_g2(&x, &y, &z);
-        res = multiply_g2_cofactor(&mut res);
+        res = clear_g2_cofactor(&mut res);
         println!("Res G2 point: {}", res.tostring());
         let mut rhs = ECP2::rhs(&mut res.getx());
         let mut y2 = FP2::new_copy(&res.gety());
@@ -1339,7 +1610,7 @@ mod tests {
         let zb = BigNum::frombytes(&hex::decode("0c38ff00b36ee38aa285e817ffed12b0382dbe8948e44c894567d194f3632106776c3506d6d96820b8121fab8cac37b1").unwrap());
         let z = FP2::new_bigs(&za, &zb);
 
-        let mut check = GroupG2::new_jacobian(x, y, z);
+        let mut check = GroupG2::new_projective(x, y, z);
         println!("Check G2 point: {}", check.tostring());
     }
 
@@ -1394,8 +1665,157 @@ mod tests {
         let zb = BigNum::frombytes(&hex::decode("169901fcaa61f9b392a3f9463f691912667d5353b0ef45eacbd4c058d6bb14c46f232b21a25d43b97b7f54af1db94b51").unwrap());
         let z = FP2::new_bigs(&za, &zb);
 
-        let mut check = GroupG2::new_jacobian(x, y, z);
+        let mut check = GroupG2::new_projective(x, y, z);
         println!("Output G2 point: {}", point.tostring());
         println!("Check G2 point: {}", check.tostring());
+    }
+
+    #[test]
+    pub fn print_g2_clearing() {
+        // Input hash from C impl input "6" + enter + ctrlD
+        let ta = BigNum::frombytes(&hex::decode("1881385eb73dc964404b07a0f4fbf6e4faf4c173c4b3276a38bbe6b1a0997b796756403bfd84afdf54c3835135f8a293").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("0d8016c5a18deddad785732e77c00f182ebfa7f0ca26c982e4b5b9d30639d91623a4e4d89f5bfab8da0de6e4821a5de3").unwrap());
+        let t = FP2::new_bigs(&ta, &tb);
+
+        let (mut x, mut y, mut z) = hash_to_iso3_point(&t);
+        println!("ISO-3 X: {}", x.tostring());
+        println!("ISO-3 Y: {}", y.tostring());
+        println!("ISO-3 Z: {}\n", z.tostring());
+
+        let mut point = iso3_to_g2(&x, &y, &z);
+        x = point.getpx();
+        y = point.getpy();
+        z = point.getpz();
+        println!("Mapped X: {}", x.tostring());
+        println!("Mapped Y: {}", y.tostring());
+        println!("Mapped Z: {}\n", z.tostring());
+
+        point = clear_g2_cofactor(&mut point);
+        x = point.getpx();
+        y = point.getpy();
+        z = point.getpz();
+        println!("Cleared X: {}", x.tostring());
+        println!("Cleared Y: {}", y.tostring());
+        println!("Cleared Z: {}\n", z.tostring());
+
+
+        let ta = BigNum::frombytes(&hex::decode("098566f3d82ef14a78ad14b8dd82b848769d0f6bfc383ca94028849dc3f81102fa184cb414a0d81a779843f9dd8b3bd1").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("187f4ff7910a16ce020aba09553c34c873e713c643682a9c8576df4a9fa026d849002665efa63b2fe3ec6aeed24755de").unwrap());
+        let mut check_X = FP2::new_bigs(&ta, &tb);
+        let ta = BigNum::frombytes(&hex::decode("059f63c4f4ef36501be4f8772438cf3ebaa9396ab8a0ce5fce3daf0df2e3fc9f3e1e150e37d84b25a250e9de973ab202").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("04292911284f1eda570d45f01605909fbb502d69a3b434bd343bc18424805c0cd579a212ff5fda00964af67daf2beaea").unwrap());
+        let mut check_Y = FP2::new_bigs(&ta, &tb);
+        let ta = BigNum::frombytes(&hex::decode("0c79dd1aa57c7c580ed4a7faaf0b4a9c3a14ca37a36c8748f755b339a0159399d44cf4cee1a166233a72a74989c76e1c").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("169901fcaa61f9b392a3f9463f691912667d5353b0ef45eacbd4c058d6bb14c46f232b21a25d43b97b7f54af1db94b51").unwrap());
+        let mut check_Z = FP2::new_bigs(&ta, &tb);
+        check_Z.inverse();
+        check_X.mul(&check_Z);
+        check_X.mul(&check_Z);
+        check_Y.mul(&check_Z);
+        check_Y.mul(&check_Z);
+        check_Y.mul(&check_Z);
+        let mut check = GroupG2::new_fp2s(&check_X, &check_Y);
+
+        println!("Check {}", check.tostring());
+        println!("Point {}", point.tostring());
+
+
+        //assert!(check.equals(&mut point));
+    }
+
+    #[test]
+    pub fn printer() {
+        /*
+        let ta = BigNum::frombytes(&hex::decode("098566f3d82ef14a78ad14b8dd82b848769d0f6bfc383ca94028849dc3f81102fa184cb414a0d81a779843f9dd8b3bd1").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("187f4ff7910a16ce020aba09553c34c873e713c643682a9c8576df4a9fa026d849002665efa63b2fe3ec6aeed24755de").unwrap());
+        let mut check_X = FP2::new_bigs(&ta, &tb);
+        let ta = BigNum::frombytes(&hex::decode("059f63c4f4ef36501be4f8772438cf3ebaa9396ab8a0ce5fce3daf0df2e3fc9f3e1e150e37d84b25a250e9de973ab202").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("04292911284f1eda570d45f01605909fbb502d69a3b434bd343bc18424805c0cd579a212ff5fda00964af67daf2beaea").unwrap());
+        let mut check_Y = FP2::new_bigs(&ta, &tb);
+        let ta = BigNum::frombytes(&hex::decode("0c79dd1aa57c7c580ed4a7faaf0b4a9c3a14ca37a36c8748f755b339a0159399d44cf4cee1a166233a72a74989c76e1c").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("169901fcaa61f9b392a3f9463f691912667d5353b0ef45eacbd4c058d6bb14c46f232b21a25d43b97b7f54af1db94b51").unwrap());
+        let mut check_Z = FP2::new_bigs(&ta, &tb);
+        let mut check = GroupG2::new_projective(check_X, check_Y, check_Z);
+
+        check.affine();
+        let mut y2 = check.gety();
+        y2.sqr();
+        let mut rhs = GroupG2::rhs(&mut check.getx());
+        assert!(y2.equals(&mut rhs));
+        */
+
+        /*
+        let ta = BigNum::frombytes(&hex::decode("11b8bb9322083941a332f34184e2d26fa4ea589379054dbdbb8cc6ab95ea02d7c4d8f3d35eaa7675257fa170a6adc8a1").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("00208a8b0c26545ec4306d478ccbc7d0474bf740e2f168e2e77db45569bd808f5075d4fe847e814bbd0c234eaa41a6a7").unwrap());
+        let mut check_X = FP2::new_bigs(&ta, &tb);
+        let ta = BigNum::frombytes(&hex::decode("10a756ea25d63c6d9cc96312bbce661c526d431a7352d4e56847d30b0d01ea989343988cd06ee2feccadf5f89659de38").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("0f7c103026e124e7ca0d9f1d55793cc6029238fafadb1904df72f4c997b8a0e36737a1ded996afb3ebc348a6c4335691").unwrap());
+        let mut check_Y = FP2::new_bigs(&ta, &tb);
+        let ta = BigNum::frombytes(&hex::decode("126e80bfcc6a715aa21f6914c6fae8a0867ec447479db727f951d5e391a29aaa5be922db2259ac8de9ef0b8c9f233a22").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("0c38ff00b36ee38aa285e817ffed12b0382dbe8948e44c894567d194f3632106776c3506d6d96820b8121fab8cac37b1").unwrap());
+        let mut check_Z = FP2::new_bigs(&ta, &tb);
+        let mut check = GroupG2::new_projective(check_X, check_Y, check_Z);
+
+        check.affine();
+        let mut y2 = check.gety();
+        y2.sqr();
+        let mut rhs = GroupG2::rhs(&mut check.getx());
+        assert!(y2.equals(&mut rhs));
+        */
+
+        let ta = BigNum::frombytes(&hex::decode("10cd8d9f0d54f656c1f6c3a36c4c8ca9be912d29555f17a27cee9acdd22fe2a066daff8ba483e469b73d93fa8082a110").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("16f94afff4a9f2c6ded51ee42f257ad2b066a10346372977e36780b409ad746333d0c6fe46a4e563a548fb0c9502264c").unwrap());
+        let mut x = FP2::new_bigs(&ta, &tb);
+        let ta = BigNum::frombytes(&hex::decode("1347f0a487ebbfb6e0749d9f64469c5e46037a5590bc87a7778948b9c5a69450d8461d7b4d713aa9698320c04dfbf8c0").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("13701d2abbead68aafc114dfa397b64a261af46945a130eec2e0b8accf19f7dacc1ab3225d296bc18b4371c871a3a3f5").unwrap());
+        let mut y = FP2::new_bigs(&ta, &tb);
+        let ta = BigNum::frombytes(&hex::decode("02b5c9c3e65e4c0b3bdf80a0f6d9b04ac5dd85f4657868c0075bfa72005e796f01ce29e8714cdaa30c403885e38d8e33").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("058dcfd2a9c63692d7f987e494afc58f31e864159fbc1d2570cd62a1e52ab3a3692e72229bbe11d61b0b6e0956e81d0a").unwrap());
+        let mut z = FP2::new_bigs(&ta, &tb);
+
+        z.inverse();
+        x.mul(&z);
+        x.mul(&z);
+        y.mul(&z);
+        y.mul(&z);
+        y.mul(&z);
+        y.sqr();
+        let mut rhs = GroupG2::rhs(&mut x);
+        assert!(y.equals(&mut rhs));
+
+    }
+
+    #[test]
+    pub fn random_test() {
+        let mut two = BigNum::new_int(2);
+        let mut a = GENERATORG2.clone();
+        let mut b = a.clone();
+        b.dbl();
+        let mut c = a.clone();
+        a = a.mul(&two);
+        c.add(&GENERATORG2);
+
+        let mut x = a.getpx();
+        let mut y = a.getpy();
+        let mut z = a.getpz();
+        println!("Cleared X: {}", x.tostring());
+        println!("Cleared Y: {}", y.tostring());
+        println!("Cleared Z: {}\n", z.tostring());
+        x = b.getpx();
+        y = b.getpy();
+        z = b.getpz();
+        println!("Cleared X: {}", x.tostring());
+        println!("Cleared Y: {}", y.tostring());
+        println!("Cleared Z: {}\n", z.tostring());
+        x = c.getpx();
+        y = c.getpy();
+        z = c.getpz();
+        println!("Cleared X: {}", x.tostring());
+        println!("Cleared Y: {}", y.tostring());
+        println!("Cleared Z: {}\n", z.tostring());
+
+        println!("{}", a.tostring());
+        println!("{}", b.tostring());
+        println!("{}", c.tostring());
     }
 }

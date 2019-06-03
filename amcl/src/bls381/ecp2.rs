@@ -74,7 +74,7 @@ impl ECP2 {
 		return E;
 	}
 
-	pub fn new_jacobian(x: FP2, y: FP2, z: FP2) -> ECP2 {
+	pub fn new_projective(x: FP2, y: FP2, z: FP2) -> ECP2 {
 		ECP2 {
 			x,
 			y,
