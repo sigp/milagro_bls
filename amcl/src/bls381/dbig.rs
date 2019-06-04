@@ -19,7 +19,7 @@ under the License.
 
 use arch;
 use bls381::big;
-use bls381::big::BIG;
+use bls381::big::{BIG, MODBYTES};
 use arch::Chunk;
 
 //#[derive(Copy, Clone)]
@@ -32,16 +32,16 @@ impl DBIG {
         DBIG {
         	w: [0; big::DNLEN as usize]
          }
-    }	
+    }
 
     pub fn new_copy(y:&DBIG) -> DBIG {
-    	let mut s= DBIG::new();   
+    	let mut s= DBIG::new();
     	for i in 0..big::DNLEN {s.w[i]=y.w[i]}
-    	return s;	
+    	return s;
     }
 
     pub fn new_scopy(x:&BIG) -> DBIG {
-    	let mut b= DBIG::new();   
+    	let mut b= DBIG::new();
 		for i in 0 ..big::NLEN {
 			b.w[i]=x.w[i];
 		}
@@ -49,7 +49,7 @@ impl DBIG {
 		b.w[big::NLEN]=x.get(big::NLEN-1)>>big::BASEBITS;
 
 		for i in big::NLEN+1 ..big::DNLEN {b.w[i]=0}
-    	return b; 	
+    	return b;
     }
 
 /* split DBIG at position n, return higher half, keep lower half */
@@ -58,7 +58,7 @@ impl DBIG {
         let mut t=BIG::new();
         let m=n%big::BASEBITS;
         let mut carry=self.w[big::DNLEN-1]<<(big::BASEBITS-m);
-    
+
         for i in (big::NLEN-1..big::DNLEN-1).rev() {
             let nw=(self.w[i]>>m)|carry;
             carry= (self.w[i]<<(big::BASEBITS-m))&big::BMASK;
@@ -71,13 +71,13 @@ impl DBIG {
 /* general shift left */
     pub fn shl(&mut self,k: usize)
     {
-        let n=k%big::BASEBITS; 
-        let m=k/big::BASEBITS; 
+        let n=k%big::BASEBITS;
+        let m=k/big::BASEBITS;
         self.w[big::DNLEN-1]=((self.w[big::DNLEN-1-m]<<n))|(self.w[big::DNLEN-m-2]>>(big::BASEBITS-n));
         for i in (m+1..big::DNLEN-1).rev() {
             self.w[i]=((self.w[i-m]<<n)&big::BMASK)|(self.w[i-m-1]>>(big::BASEBITS-n));
         }
-  
+
         self.w[m]=(self.w[0]<<n)&big::BMASK;
         for i in 0 ..m {self.w[i]=0}
     }
@@ -106,8 +106,8 @@ impl DBIG {
         }
         for i in big::NLEN ..big::DNLEN {
             self.w[i]=x.w[i-big::NLEN];
-        }        
-    }    
+        }
+    }
 
 	pub fn cmove(&mut self,g:&DBIG,d: isize) {
 		let b=-d as Chunk;
@@ -119,23 +119,23 @@ impl DBIG {
 /* self+=x */
     pub fn add(&mut self,x:&DBIG) {
         for i in 0 ..big::DNLEN {
-            self.w[i]+=x.w[i]; 
+            self.w[i]+=x.w[i];
         }
-    } 
+    }
 
 /* self-=x */
 	pub fn sub(&mut self,x:&DBIG) {
 		for i in 0 ..big::DNLEN {
-			self.w[i]-=x.w[i]; 
+			self.w[i]-=x.w[i];
 		}
-	} 
+	}
 
 /* self=x-self */
     pub fn rsub(&mut self,x:&DBIG) {
         for i in 0 ..big::DNLEN {
-            self.w[i]=x.w[i]-self.w[i]; 
+            self.w[i]=x.w[i]-self.w[i];
         }
-    } 
+    }
 
 
 /* Compare a and b, return 0 if a==b, -1 if a<b, +1 if a>b. Inputs must be normalised */
@@ -165,18 +165,18 @@ impl DBIG {
         self.norm();
         let mut m=DBIG::new_scopy(c);
         let mut dr=DBIG::new();
-    
+
         if DBIG::comp(self,&m)<0 {
         	let r=BIG::new_dcopy(self);
         	return r;
         }
-    
+
         loop {
             m.shl(1);
             k += 1;
             if DBIG::comp(self,&m)<0 {break;}
         }
-    
+
         while k>0 {
             m.shr(1);
 
@@ -267,6 +267,16 @@ impl DBIG {
 			s=s + &format!("{:X}", b.w[0]&15);
 		}
 		return s;
-	}	
+	}
 
+
+    /* convert from byte array to DBIG */
+	pub fn frombytes(b: &[u8]) -> DBIG {
+		let mut m = DBIG::new();
+		for i in 0 ..(2 * MODBYTES as usize) {
+			m.shl(8);
+            m.w[0] += (b[i] & 0xff) as Chunk;
+		}
+		m
+	}
 }

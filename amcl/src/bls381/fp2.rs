@@ -359,6 +359,13 @@ impl FP2 {
 		self.a.add(&b);
 		self.b.sub(&b);
 	}
+
+	pub fn is_neg(&mut self) -> bool{
+		if self.b.iszilch() {
+			return self.a.is_neg();
+		}
+		self.b.is_neg()
+	}
 }
 /*
 fn main()

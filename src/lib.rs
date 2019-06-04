@@ -32,6 +32,7 @@ mod amcl_utils;
 mod errors;
 mod g1;
 mod g2;
+mod jacobian;
 mod keys;
 mod rng;
 mod signature;

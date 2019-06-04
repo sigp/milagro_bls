@@ -237,7 +237,7 @@ impl BIG {
 			{self.w[i]=0}
 	}
 
-/* Shift right by less than a word */
+/* Shift left by less than a word */
 	pub fn fshl(&mut self,k:usize) -> isize {
 		let n=k;
 		self.w[NLEN-1]=((self.w[NLEN-1]<<n))|(self.w[NLEN-2]>>(BASEBITS-n));
