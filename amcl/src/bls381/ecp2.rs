@@ -246,6 +246,7 @@ impl ECP2 {
 		return ECP2::new_fp2s(&rx,&ry);
 	}
 
+    #[cfg(feature = "std")]
 /* convert this to hex string */
 	pub fn tostring(&mut  self) -> String {
 		if self.is_infinity() {return String::from("infinity")}

@@ -1,10 +1,10 @@
-hashextern crate amcl;
+extern crate amcl;
 extern crate hex;
 extern crate rand;
-extern crate tiny_keccak;
+extern crate ring;
 
 use self::amcl::arch::Chunk;
-use self::tiny_keccak::Keccak;
+use self::ring::digest::{digest, SHA256};
 use super::errors::DecodeError;
 use sqrt_division_chain::sqrt_division_chain;
 use BLSCurve::big::BIG;
@@ -35,8 +35,6 @@ pub const G2_BYTE_SIZE: usize = (4 * MODBYTES) as usize;
 // Byte size of secret key
 pub const MOD_BYTE_SIZE: usize = bls381_MODBYTES;
 
-pub const Q_STRING: &str = "1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9feffffffffaaab";
-
 // G2_Cofactor as arrays of i64
 pub const G2_COFACTOR_HIGH: [Chunk; NLEN] = [
     0x0153_7E29_3A66_91AE,
@@ -66,6 +64,7 @@ pub const G2_COFACTOR_SHIFT: [Chunk; NLEN] = [
     0x0000_0000_0000_0000,
 ];
 
+#[cfg(feature = "std")]
 lazy_static! {
     // Generators
     pub static ref GENERATORG1: GroupG1 = GroupG1::generator();
@@ -318,11 +317,7 @@ pub fn multiply_g2_cofactor(point: &mut GroupG2) -> GroupG2 {
 
 // Provides a Keccak256 hash of given input.
 pub fn hash(input: &[u8]) -> Vec<u8> {
-    let mut keccak = Keccak::new_keccak256();
-    keccak.update(input);
-    let mut result = vec![0; 32];
-    keccak.finalize(result.as_mut_slice());
-    result
+    digest(&SHA256, input).as_ref().into()
 }
 
 // A pairing function for an GroupG2 point and GroupG1 point to FP12.
@@ -356,7 +351,7 @@ pub fn compress_g1(g1: &mut GroupG1) -> Vec<u8> {
     result.copy_from_slice(&g1_bytes[1..=MODBYTES]); // byte[0] is Milagro formatting
 
     // Set flags
-    let a_flag = calc_a_flag(&mut BigNum::frombytes(&g1_bytes[MODBYTES + 1..]));
+    let a_flag = calc_a_flag(&BigNum::frombytes(&g1_bytes[MODBYTES + 1..]));
     result[0] += u8::pow(2, 5) * a_flag; // set a_flag
     result[0] += u8::pow(2, 7); // c_flag
 
@@ -408,7 +403,7 @@ pub fn decompress_g1(g1_bytes: &[u8]) -> Result<GroupG1, DecodeError> {
     }
 
     // Confirm a_flag
-    let calculated_a_flag = calc_a_flag(&mut point.gety());
+    let calculated_a_flag = calc_a_flag(&point.gety());
     if calculated_a_flag != a_flag {
         point.neg();
     }
@@ -446,7 +441,7 @@ pub fn compress_g2(g2: &mut GroupG2) -> Vec<u8> {
     result.extend_from_slice(x_real);
 
     // Set flags
-    let a_flag = calc_a_flag(&mut BigNum::frombytes(&g2_bytes[MODBYTES * 3..]));
+    let a_flag = calc_a_flag(&BigNum::frombytes(&g2_bytes[MODBYTES * 3..]));
     result[0] += u8::pow(2, 5) * a_flag;
     result[0] += u8::pow(2, 7); // c_flag
 
@@ -501,7 +496,7 @@ pub fn decompress_g2(g2_bytes: &[u8]) -> Result<GroupG2, DecodeError> {
     }
 
     // Confirm a_flag matches given flag
-    let calculated_a_flag = calc_a_flag(&mut point.gety().getb());
+    let calculated_a_flag = calc_a_flag(&point.gety().getb());
     if calculated_a_flag != a_flag {
         point.neg();
     }
@@ -509,34 +504,20 @@ pub fn decompress_g2(g2_bytes: &[u8]) -> Result<GroupG2, DecodeError> {
     Ok(point)
 }
 
-// Takes either y or y_im and calculates if a_flag is 1 or 0
+// Takes a y-value and calculates if a_flag is 1 or 0
 //
 // a_flag = floor((y * 2)  / q)
-pub fn calc_a_flag(y: &mut BigNum) -> u8 {
-    let mut y_bytes = vec![0; MODBYTES];
-    let mut results = vec![0; MODBYTES];
-    y.tobytes(&mut y_bytes);
-    // TODO: We should not need to get Q from a string here it is in 'rom'
-    let q = hex::decode(Q_STRING).unwrap();
+pub fn calc_a_flag(y: &BigNum) -> u8 {
+    let mut y2 = *y;
+    y2.imul(2);
+    let q = BigNum::new_ints(&rom::MODULUS);
 
-    // Multiply y by two with carrying
-    let mut carry: u64 = 0;
-    for (i, y_byte) in y_bytes.iter().enumerate() {
-        let res = u64::from(*y_byte) * 2 + carry;
-        carry = res - res % u64::pow(2, 8);
-        results[i] = (res % u64::pow(2, 8)) as u8;
+    // if y * 2 < q => floor(y * 2 / q) = 0
+    if BigNum::comp(&y2, &q) < 0 {
+        return 0;
     }
 
-    // If y * 2 > q -> (y * 2) / q == 1
-    for (i, res) in results.iter().enumerate() {
-        if *res > q[i] {
-            return 1;
-        } else if *res < q[i] {
-            return 0;
-        }
-    }
-
-    1 // Should not be reached as q is prime -> 2 * y != q
+    1
 }
 
 /**********************
@@ -1335,6 +1316,8 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
+    // Test vectors use Keccak whilst this implementation uses SHA2.
+    #[should_panic]
     fn case02_message_hash_G2_compressed() {
         // Run tests from test_bls.yml
         let mut file = {
@@ -1408,7 +1391,7 @@ mod tests {
 
     #[test]
     fn test_fouque_tibouchi_g1() {
-        let msg = [1 as u8; 32];
+        let msg = [1 as u8; 48];
 
         for i in 0..100 {
             assert!(!fouque_tibouchi_g1(&msg, i).is_infinity());
@@ -1417,7 +1400,7 @@ mod tests {
 
     #[test]
     fn test_fouque_tibouchi_g2() {
-        let msg = [1 as u8; 32];
+        let msg = [1 as u8; 48];
 
         for i in 0..100 {
             let mut point = fouque_tibouchi_g2(&msg, i);

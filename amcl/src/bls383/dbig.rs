@@ -248,6 +248,7 @@ impl DBIG {
 		return bts;
 	}
 
+    #[cfg(feature = "std")]
 /* Convert to Hex String */
 	pub fn to_string(&mut self) -> String {
 		let mut s = String::new();

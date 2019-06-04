@@ -286,6 +286,7 @@ impl FP2 {
 		return true;
 	}
 
+    #[cfg(feature = "std")]
 /* output to hex string */
 	pub fn tostring(&mut self) -> String {
 		return format!("[{},{}]",self.a.tostring(),self.b.tostring());

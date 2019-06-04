@@ -1,11 +1,12 @@
 extern crate amcl;
 
-use super::amcl_utils::{ate_pairing, hash_on_g2, GENERATORG1};
+use super::amcl_utils::{self, ate_pairing, hash_on_g2, GENERATORG1};
 use super::errors::DecodeError;
 use super::g2::G2Point;
 use super::keys::{PublicKey, SecretKey};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(Debug))]
 pub struct Signature {
     pub point: G2Point,
 }
@@ -28,7 +29,16 @@ impl Signature {
     pub fn verify(&self, msg: &[u8], d: u64, pk: &PublicKey) -> bool {
         let mut msg_hash_point = hash_on_g2(msg, d);
         msg_hash_point.affine();
-        let mut lhs = ate_pairing(self.point.as_raw(), &GENERATORG1);
+        let mut lhs = {
+            #[cfg(feature = "std")]
+            {
+                ate_pairing(self.point.as_raw(), &amcl_utils::GENERATORG1)
+            }
+            #[cfg(not(feature = "std"))]
+            {
+                ate_pairing(self.point.as_raw(), &amcl_utils::GroupG1::generator())
+            }
+        };
         let mut rhs = ate_pairing(&msg_hash_point, &pk.point.as_raw());
         lhs.equals(&mut rhs)
     }
@@ -49,6 +59,7 @@ impl Signature {
 #[cfg(test)]
 mod tests {
     extern crate hex;
+    extern crate rand;
     extern crate yaml_rust;
 
     use self::yaml_rust::yaml;
@@ -58,7 +69,7 @@ mod tests {
 
     #[test]
     fn basic_sign_verify() {
-        let keypair = Keypair::random();
+        let keypair = Keypair::random(&mut rand::thread_rng());
         let sk = keypair.sk;
         let vk = keypair.pk;
 
@@ -85,7 +96,7 @@ mod tests {
 
     #[test]
     fn verification_failure_message() {
-        let keypair = Keypair::random();
+        let keypair = Keypair::random(&mut rand::thread_rng());
         let sk = keypair.sk;
         let vk = keypair.pk;
 
@@ -100,7 +111,7 @@ mod tests {
 
     #[test]
     fn verification_failure_domain() {
-        let keypair = Keypair::random();
+        let keypair = Keypair::random(&mut rand::thread_rng());
         let sk = keypair.sk;
         let vk = keypair.pk;
 
@@ -112,6 +123,8 @@ mod tests {
     }
 
     #[test]
+    // Test vectors use Keccak whilst this implementation uses SHA2.
+    #[should_panic]
     fn case04_sign_messages() {
         // Run tests from test_bls.yml
         let mut file = {
