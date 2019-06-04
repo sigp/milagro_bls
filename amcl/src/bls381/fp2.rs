@@ -351,6 +351,13 @@ impl FP2 {
 		self.div2();
 	}
 
+	// ((a + b) , (a - b))
+	pub fn spmt(&mut self) {
+		let b = self.b.clone();
+		self.b = self.a.clone();
+		self.a.add(&b);
+		self.b.sub(&b);
+	}
 }
 /*
 fn main()

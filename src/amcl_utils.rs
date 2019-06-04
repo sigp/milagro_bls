@@ -1,4 +1,4 @@
-extern crate amcl;
+hashextern crate amcl;
 extern crate hex;
 extern crate rand;
 extern crate tiny_keccak;
@@ -150,15 +150,12 @@ lazy_static! {
     pub static ref PSI_INVERSES_W_SQR_CUBE: FP2 = FP2::new_bigs(
         &BigNum::frombytes(&hex::decode("0d0088f51cbff34d258dd3db21a5d66bb23ba5c279c2895fb39869507b587b120f55ffff58a9ffffdcff7fffffffd556").unwrap()),
         &BigNum::frombytes(&hex::decode("0d0088f51cbff34d258dd3db21a5d66bb23ba5c279c2895fb39869507b587b120f55ffff58a9ffffdcff7fffffffd555").unwrap()));
-    pub static ref PSI_QI_X: FP2 = FP2::new_bigs(
-        &BigNum::frombytes(&hex::decode("1a0111ea397fe699ec02408663d4de85aa0d857d89759ad4897d29650fb85f9b409427eb4f49fffd8bfd00000000aaad").unwrap()),
-        &BigNum::new());
-    pub static ref PSI_QI_Y: FP2 = FP2::new_bigs(
-        &BigNum::frombytes(&hex::decode("06af0e0437ff400b6831e36d6bd17ffe48395dabc2d3435e77f76e17009241c5ee67992f72ec05f4c81084fbede3cc09").unwrap()),
-        &BigNum::frombytes(&hex::decode("1a0111ea397fe69a4b1ba7b6434bacd764774b84f38512bf6730d2a0f6b0f6241eabfffeb153ffffb9fee5feee15712c").unwrap()));
-    pub static ref PSI_TWIST_CORRECTION_X: FP2 = FP2::new_bigs(
-        &BigNum::frombytes(&hex::decode("1a0111ea397fe699ec02408663d4de85aa0d857d89759ad4897d29650fb85f9b409427eb4f49fffd8bfd00000000aaad").unwrap()),
-        &BigNum::frombytes(&hex::decode("0ed7b3fbb2da18cd59a3a5a9733c32ae17e4523c0336bd90a930f9afc887568028fc8a5fbdb5846bbaf05059a723cb9d").unwrap()));
+    pub static ref PSI_QI_X: FP = FP::new_big(
+        &BigNum::frombytes(&hex::decode("1a0111ea397fe699ec02408663d4de85aa0d857d89759ad4897d29650fb85f9b409427eb4f49fffd8bfd00000000aaad").unwrap()));
+    pub static ref PSI_QI_Y: FP = FP::new_big(
+        &BigNum::frombytes(&hex::decode("06af0e0437ff400b6831e36d6bd17ffe48395dabc2d3435e77f76e17009241c5ee67992f72ec05f4c81084fbede3cc09").unwrap()));
+    pub static ref PSI_TWIST_CORRECTION_X: FP = FP::new_big(
+        &BigNum::frombytes(&hex::decode("1a0111ea397fe699ec02408663d4de85aa0d857d89759ad4897d29650fb85f9b409427eb4f49fffd8bfd00000000aaad").unwrap()));
     pub static ref PSI_TWIST_CORRECTION_Y: FP2 = FP2::new_bigs(
         &BigNum::frombytes(&hex::decode("135203e60180a68ee2e9c448d77a2cd91c3dedd930b1cf60ef396489f61eb45e304466cf3e67fa0af1ee7b04121bdea2").unwrap()),
         &BigNum::frombytes(&hex::decode("06af0e0437ff400b6831e36d6bd17ffe48395dabc2d3435e77f76e17009241c5ee67992f72ec05f4c81084fbede3cc09").unwrap()));
@@ -211,17 +208,17 @@ pub fn clear_g2_psi(point: &mut GroupG2) -> GroupG2 {
 
     let mut temp0 = psi_addition_chain(&point); // -xP
 
-    let mut x = temp0.getpx();
-    let mut y = temp0.getpy();
-    let mut z = temp0.getpz();
-    println!("X temp0 -xP: {}", x.tostring());
-    println!("Y temp0 -xP: {}", y.tostring());
-    println!("Z temp0 -xP: {}\n", z.tostring());
-
+    let mut check = temp0.clone();
+    println!("Addition chain 1: {}", check.tostring());
 
     temp0.add(&point); // (-x + 1) P
-    let mut temp1 = point.clone(); // -P
+    let mut temp1 = point.clone(); // P
+    temp1.neg(); // -P
     let temp2 = psi(&temp1); // - psi(P)
+
+    let mut check = temp2.clone();
+    println!("-psi(P): {}", check.tostring());
+
     temp0.add(&temp2); // (-x + 1) P + - psi(P)
     let mut temp3 = psi_addition_chain(&temp0); // (x^2 - x) P + x psi(P)
     temp3.add(&temp2); // (x^2 - x) P + (x - 1) psi(P)
@@ -236,169 +233,67 @@ pub fn clear_g2_psi(point: &mut GroupG2) -> GroupG2 {
 // Returns -xP
 pub fn psi_addition_chain(point: &GroupG2) -> GroupG2 {
     let mut x = point.clone();
-    let two = BigNum::new_int(2);
 
-    let mut check = point.clone();
-    check.affine();
-    let mut rhs = GroupG2::rhs(&mut check.getx());
-    let mut y2 = check.gety();
-    y2.sqr();
-    println!("y^2 {}", y2.tostring());
-    println!("rhs {}", rhs.tostring());
-
-
-    let mut check2 = check.clone();
-    let mut check3 = check.clone();
-    check2.dbl();
-    let mut check_x = check2.getpx();
-    let mut check_y = check2.getpy();
-    let mut check_z = check2.getpz();
-    println!("X dbl: {}", check_x.tostring());
-    println!("Y dbl: {}", check_y.tostring());
-    println!("Z dbl: {}\n", check_z.tostring());
-    check2.affine();
-    println!("Point dbl: {}\n", check2.tostring());
-
-    check3.add(&point);
-    check_x = check3.getpx();
-    check_y = check3.getpy();
-    check_z = check3.getpz();
-    println!("X add: {}", check_x.tostring());
-    println!("Y add: {}", check_y.tostring());
-    println!("Z add: {}\n", check_z.tostring());
-    check3.affine();
-    println!("Point add: {}\n", check3.tostring());
-
-    check = check.mul(&two);
-    let mut check_x = check.getpx();
-    let mut check_y = check.getpy();
-    let mut check_z = check.getpz();
-    println!("X mul: {}", check_x.tostring());
-    println!("Y mul: {}", check_y.tostring());
-    println!("Z mul: {}\n", check_z.tostring());
-    check.affine();
-    println!("Point mul: {}\n", check.tostring());
-
-
-
-
-    x.add(&point);
-    check_x = x.getpx();
-    check_y = x.getpy();
-    check_z = x.getpz();
-    println!("X chain first: {}", check_x.tostring());
-    println!("Y chain first: {}", check_y.tostring());
-    println!("Z chain first: {}\n", check_z.tostring());
-
-
+    x.dbl(); // 2
     x.add(&point); // 3
     for _ in 0..2 {
-        x = x.mul(&two); // 12
+        x.dbl(); // 12
     }
-
-    let mut check_x = x.getpx();
-    let mut check_y = x.getpy();
-    let mut check_z = x.getpz();
-    println!("X chain 2: {}", check_x.tostring());
-    println!("Y chain 2: {}", check_y.tostring());
-    println!("Z chain 2: {}\n", check_z.tostring());
-
     x.add(&point); // 13
     for _ in 0..3 {
-        x = x.mul(&two); // 104
+        x.dbl(); // 104
     }
-
-    let mut check_x = x.getpx();
-    let mut check_y = x.getpy();
-    let mut check_z = x.getpz();
-    println!("X chain 3: {}", check_x.tostring());
-    println!("Y chain 3: {}", check_y.tostring());
-    println!("Z chain 3: {}\n", check_z.tostring());
-
     x.add(&point); // 105
     for _ in 0..9 {
-        x = x.mul(&two); // 53,760
+        x.dbl(); // 53,760
     }
-
-    let mut check_x = x.getpx();
-    let mut check_y = x.getpy();
-    let mut check_z = x.getpz();
-    println!("X chain 9: {}", check_x.tostring());
-    println!("Y chain 9: {}", check_y.tostring());
-    println!("Z chain 9: {}\n", check_z.tostring());
-
     x.add(&point); // 53761
     for _ in 0..32 {
-        x = x.mul(&two); // 230901736800256
+        x.dbl(); // 230901736800256
     }
-
-    let mut check_x = x.getpx();
-    let mut check_y = x.getpy();
-    let mut check_z = x.getpz();
-    println!("X chain 32: {}", check_x.tostring());
-    println!("Y chain 32: {}", check_y.tostring());
-    println!("Z chain 32: {}\n", check_z.tostring());
-
     x.add(&point); // 230901736800257
     for _ in 0..16 {
-        x = x.mul(&two); // 15132376222941577216
+        x.dbl(); // 15132376222941577216
     }
-
-    let mut check_x = x.getpx();
-    let mut check_y = x.getpy();
-    let mut check_z = x.getpz();
-    println!("X chain: {}", check_x.tostring());
-    println!("Y chain: {}", check_y.tostring());
-    println!("Z chain: {}\n", check_z.tostring());
-
     x
 }
 
 // Psi
 pub fn psi(point: &GroupG2) -> GroupG2 {
-    let mut temp1 = point.getpz(); // Z
-    let mut temp0 = temp1.clone(); // Z
-    temp0.sqr(); // Z^2
-    temp1.mul(&temp0); // Z^3
+    let mut x_den = point.getpz(); // Z
+    let mut y_den = point.getpz(); // Z
 
     // Calculate new x
     let mut x = psi_x(point.getpx());
-    x.mul(&PSI_TWIST_CORRECTION_X);
+    x.pmul(&PSI_TWIST_CORRECTION_X);
     x.times_i();
-    let mut temp0 = psi_x(temp0);
+    let mut x_den = psi_x(x_den);
 
     // Calculate new y
     let mut y = psi_y(point.getpy());
     y.mul(&PSI_TWIST_CORRECTION_Y);
-    y.times_i();
-    let temp1 = psi_y(temp1);
+    let y_den = psi_y(y_den);
 
-    // Jacobian
-    let mut z = temp0.clone();
-    z.mul(&temp1); // new Z
-
-    x.mul(&temp1);
-    x.mul(&z); // new X
-
-    y.mul(&temp0);
-    temp0 = z.clone();
-    temp0.sqr(); // Z^2
-    y.mul(&temp0); // new Y
+    // Standard Projective
+    let mut z = x_den.clone();
+    z.mul(&y_den); // x_denominator * y_denominator
+    x.mul(&y_den); // x * y_denominator
+    y.mul(&x_den); // y * x_denominator
 
     GroupG2::new_projective(x, y, z)
 }
 
 pub fn psi_x(mut x: FP2) -> FP2 {
     x.mul(&PSI_INVERSES_W_SQR_CUBE);
-    x.mul(&PSI_QI_X);
-    x.neg();
+    x.pmul(&PSI_QI_X);
+    x.conj();
     x
 }
 
 pub fn psi_y(mut y: FP2) -> FP2 {
     y.mul(&PSI_INVERSES_W_SQR_CUBE);
-    y.mul(&PSI_QI_Y);
-    y.neg();
+    y.spmt();
+    y.pmul(&PSI_QI_Y);
     y
 }
 
@@ -426,15 +321,6 @@ pub fn hash(input: &[u8]) -> Vec<u8> {
     let mut keccak = Keccak::new_keccak256();
     keccak.update(input);
     let mut result = vec![0; 32];
-    keccak.finalize(result.as_mut_slice());
-    result
-}
-
-// Provides a Keccak512 hash of given input.
-pub fn hash512(input: &[u8]) -> Vec<u8> {
-    let mut keccak = Keccak::new_keccak512();
-    keccak.update(input);
-    let mut result = vec![0; 64];
     keccak.finalize(result.as_mut_slice());
     result
 }
@@ -701,8 +587,8 @@ pub fn hash_and_test_g1(msg: &[u8], domain: u64) -> GroupG1 {
 // Fouque Tibouchi G1
 pub fn fouque_tibouchi_twice_g1(msg: &[u8], domain: u64) -> GroupG1 {
     // Hash (message, domain) for x coordinate
-    let t0 = hash512(&[msg, &domain.to_be_bytes(), &[1]].concat());
-    let t1 = hash512(&[msg, &domain.to_be_bytes(), &[2]].concat());
+    let t0 = hash(&[msg, &domain.to_be_bytes(), &[1]].concat());
+    let t1 = hash(&[msg, &domain.to_be_bytes(), &[2]].concat());
 
     // Convert hashes to Fp
     let t0 = BigNum::frombytes(&t0);
@@ -723,7 +609,7 @@ pub fn fouque_tibouchi_twice_g1(msg: &[u8], domain: u64) -> GroupG1 {
 // Fouque Tibouchi twice and adds the result on G1
 pub fn fouque_tibouchi_g1(msg: &[u8], domain: u64) -> GroupG1 {
     // Hash (message, domain) for x coordinate
-    let t0 = hash512(&[msg, &domain.to_be_bytes(), &[1]].concat());
+    let t0 = hash(&[msg, &domain.to_be_bytes(), &[1]].concat());
 
     // Convert hashes to Fp
     let t0 = BigNum::frombytes(&t0);
@@ -781,14 +667,10 @@ pub fn sw_encoding_g1(t: &mut FP) -> GroupG1 {
     tw.mul(&w);
     x1.sub(&tw);
 
-    // OPTIMIZATION: Check if x1 is valid here and return.
-
     // x2 = -1 - x1
     let mut x2 = x1.clone();
     x2.neg();
     x2.sub(&fp_one);
-
-    // OPTIMIZATION: Check if x2 is valid here and return.
 
     // x3 = 1 + 1 / w^2
     let mut x3 = w.clone();
@@ -796,6 +678,7 @@ pub fn sw_encoding_g1(t: &mut FP) -> GroupG1 {
     x3.inverse();
     x3.add(&fp_one);
 
+    // TODO: Make this constant time
     // Take first valid point of x1, x2, x3
     let mut curve_point = GroupG1::new_big(&x1.redc());
     if curve_point.is_infinity() {
@@ -811,6 +694,7 @@ pub fn sw_encoding_g1(t: &mut FP) -> GroupG1 {
     neg_y.neg();
     let parity_2 = BigNum::comp(&y.x, &neg_y.x);
     if (parity < 0 && parity_2 > 0) || (parity > 0 && parity_2 < 0) {
+        // TODO: Make this constant time?
         curve_point.neg();
     }
 
@@ -872,10 +756,10 @@ pub fn hash_and_test_g2(msg: &[u8], domain: u64) -> GroupG2 {
 // Fouque Tibouchi Twice and add results on G2
 pub fn fouque_tibouchi_twice_g2(msg: &[u8], domain: u64) -> GroupG2 {
     // Hash (message, domain) for x coordinate
-    let t00 = hash512(&[msg, &domain.to_be_bytes(), &[10]].concat());
-    let t01 = hash512(&[msg, &domain.to_be_bytes(), &[11]].concat());
-    let t10 = hash512(&[msg, &domain.to_be_bytes(), &[20]].concat());
-    let t11 = hash512(&[msg, &domain.to_be_bytes(), &[21]].concat());
+    let t00 = hash(&[msg, &domain.to_be_bytes(), &[10]].concat());
+    let t01 = hash(&[msg, &domain.to_be_bytes(), &[11]].concat());
+    let t10 = hash(&[msg, &domain.to_be_bytes(), &[20]].concat());
+    let t11 = hash(&[msg, &domain.to_be_bytes(), &[21]].concat());
 
     // Convert hashes to Fp2
     let t00 = BigNum::frombytes(&t00);
@@ -898,8 +782,8 @@ pub fn fouque_tibouchi_twice_g2(msg: &[u8], domain: u64) -> GroupG2 {
 // Fouque Tibouchi G2
 pub fn fouque_tibouchi_g2(msg: &[u8], domain: u64) -> GroupG2 {
     // Hash (message, domain) for x coordinate
-    let t00 = hash512(&[msg, &domain.to_be_bytes(), &[10]].concat());
-    let t01 = hash512(&[msg, &domain.to_be_bytes(), &[11]].concat());
+    let t00 = hash(&[msg, &domain.to_be_bytes(), &[10]].concat());
+    let t01 = hash(&[msg, &domain.to_be_bytes(), &[11]].concat());
 
     // Convert hashes to Fp2
     let t00 = BigNum::frombytes(&t00);
@@ -997,8 +881,8 @@ pub fn sw_encoding_g2(t: &mut FP2) -> GroupG2 {
 // A hash-to-curve method by Wahby and Boneh
 pub fn optimised_sw_g2(msg: &[u8], domain: u64) -> GroupG2 {
     // Hash (message, domain) for x coordinate
-    let t00 = hash512(&[msg, &domain.to_be_bytes(), &[10]].concat());
-    let t01 = hash512(&[msg, &domain.to_be_bytes(), &[11]].concat());
+    let t00 = hash(&[msg, &domain.to_be_bytes(), &[10]].concat());
+    let t01 = hash(&[msg, &domain.to_be_bytes(), &[11]].concat());
 
     // Convert hashes to Fp2
     let t00 = BigNum::frombytes(&t00);
@@ -1018,10 +902,10 @@ pub fn optimised_sw_g2(msg: &[u8], domain: u64) -> GroupG2 {
 // A hash-to-curve method by Wahby and Boneh
 pub fn optimised_sw_g2_twice(msg: &[u8], domain: u64) -> GroupG2 {
     // Hash (message, domain) for x coordinate
-    let t00 = hash512(&[msg, &domain.to_be_bytes(), &[00]].concat());
-    let t01 = hash512(&[msg, &domain.to_be_bytes(), &[01]].concat());
-    let t10 = hash512(&[msg, &domain.to_be_bytes(), &[10]].concat());
-    let t11 = hash512(&[msg, &domain.to_be_bytes(), &[11]].concat());
+    let t00 = hash(&[msg, &domain.to_be_bytes(), &[01]].concat());
+    let t01 = hash(&[msg, &domain.to_be_bytes(), &[02]].concat());
+    let t10 = hash(&[msg, &domain.to_be_bytes(), &[11]].concat());
+    let t11 = hash(&[msg, &domain.to_be_bytes(), &[12]].concat());
 
     // Convert hashes to Fp2
     let t00 = BigNum::frombytes(&t00);
@@ -1137,7 +1021,7 @@ pub fn hash_to_iso3_point(t: &FP2) -> (FP2, FP2, FP2) {
         }
     }
 
-    // Output as Jacobian
+    // Output as Jacobian (Convert to projective?)
     // X = x-num * x-den
     tmp1 = x_numerator.clone();
     tmp1.mul(&x_denominator);
@@ -1720,11 +1604,11 @@ mod tests {
         println!("Point {}", point.tostring());
 
 
-        //assert!(check.equals(&mut point));
+        assert!(check.equals(&mut point));
     }
 
     #[test]
-    pub fn printer() {
+    pub fn comparison() {
         /*
         let ta = BigNum::frombytes(&hex::decode("098566f3d82ef14a78ad14b8dd82b848769d0f6bfc383ca94028849dc3f81102fa184cb414a0d81a779843f9dd8b3bd1").unwrap());
         let tb = BigNum::frombytes(&hex::decode("187f4ff7910a16ce020aba09553c34c873e713c643682a9c8576df4a9fa026d849002665efa63b2fe3ec6aeed24755de").unwrap());
@@ -1763,26 +1647,51 @@ mod tests {
         assert!(y2.equals(&mut rhs));
         */
 
-        let ta = BigNum::frombytes(&hex::decode("10cd8d9f0d54f656c1f6c3a36c4c8ca9be912d29555f17a27cee9acdd22fe2a066daff8ba483e469b73d93fa8082a110").unwrap());
-        let tb = BigNum::frombytes(&hex::decode("16f94afff4a9f2c6ded51ee42f257ad2b066a10346372977e36780b409ad746333d0c6fe46a4e563a548fb0c9502264c").unwrap());
+        // Addition chain - 6
+        let ta = BigNum::frombytes(&hex::decode("0348fa87143de80c801236e63ae29d3f647cfa5e6234b128f911574e4760c694e7471447271ed906c0610ddb37c31ed7").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("126aa26332782fc0f0694e96ea0409850c4b02382129189cf078d5cf8b6380b49c15fc888e95fd97762bb2cf121acb54").unwrap());
         let mut x = FP2::new_bigs(&ta, &tb);
-        let ta = BigNum::frombytes(&hex::decode("1347f0a487ebbfb6e0749d9f64469c5e46037a5590bc87a7778948b9c5a69450d8461d7b4d713aa9698320c04dfbf8c0").unwrap());
-        let tb = BigNum::frombytes(&hex::decode("13701d2abbead68aafc114dfa397b64a261af46945a130eec2e0b8accf19f7dacc1ab3225d296bc18b4371c871a3a3f5").unwrap());
+        let ta = BigNum::frombytes(&hex::decode("02e55937047aa3147d78759ff1ca1ee91be3ae69b555a885f978affe62b16c22047668be736e407d1ec6753955275710").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("097688679a8d7dcd65beb63a109490bc53aadea66a2f636657cb1b661444edf56e8aabf0777f47fe4310fdabaab96b46").unwrap());
         let mut y = FP2::new_bigs(&ta, &tb);
-        let ta = BigNum::frombytes(&hex::decode("02b5c9c3e65e4c0b3bdf80a0f6d9b04ac5dd85f4657868c0075bfa72005e796f01ce29e8714cdaa30c403885e38d8e33").unwrap());
-        let tb = BigNum::frombytes(&hex::decode("058dcfd2a9c63692d7f987e494afc58f31e864159fbc1d2570cd62a1e52ab3a3692e72229bbe11d61b0b6e0956e81d0a").unwrap());
+        let ta = BigNum::frombytes(&hex::decode("143d8eb26269f8bae5f84b2cb9942c7b330513c80588bf4c7df0a80b2334e1826b00ab5c00c68eb7ae37e6dcbd6fd767").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("06653f0d8a6496d60cddb9db3bbde3cfdfc0b16ff982f7ba14b882955ff0a2f6ae65da472ac2dbc0ddafc477bbf274f9").unwrap());
         let mut z = FP2::new_bigs(&ta, &tb);
-
         z.inverse();
         x.mul(&z);
         x.mul(&z);
         y.mul(&z);
         y.mul(&z);
         y.mul(&z);
-        y.sqr();
+        let mut y2 = y.clone();
+        y2.sqr();
         let mut rhs = GroupG2::rhs(&mut x);
-        assert!(y.equals(&mut rhs));
+        assert!(y2.equals(&mut rhs));
+        let mut check = GroupG2::new_fp2s(&x, &y);
+        println!("{}", check.tostring());
 
+        // -psi(P) - 6
+        let ta = BigNum::frombytes(&hex::decode("1009290e8aa1fbf022fbb49a8d59c7ecca4c494f4a7ee59f6cf26dac74024279727052600c23bb24f9ce56f4f950d300").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("189ced455e572657a898c2abe5e4947db15521b29624ef5797c4365c279fbc1ac3a997c977ba09bb4d19b65efb50db14").unwrap());
+        let mut x = FP2::new_bigs(&ta, &tb);
+        let ta = BigNum::frombytes(&hex::decode("08967c959cd8e1a43efb940d7968aa5006698d8bb86fd60913bad41c065e78c01dc9e97e67f69c4a1aacc00fcd82b766").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("04191f73d8c82257d25ab278be509b33107049089476f658f50d7bb856eb624897a8461f4da15129d83d3c59175d830f").unwrap());
+        let mut y = FP2::new_bigs(&ta, &tb);
+        let ta = BigNum::frombytes(&hex::decode("061a2d62bb21e97c00482f6b7930289fcea86bbc7bb57157bc2aa598e99aaa3be81f79cef91a69b6cf91e001873fc8e5").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("141e285f216f2833ccc5d3c4037ed1962343c4db120c747afc4dddfb772f045145b1837f919e5eb7124d63b3cf9966a2").unwrap());
+        let mut z = FP2::new_bigs(&ta, &tb);
+        z.inverse();
+        x.mul(&z);
+        x.mul(&z);
+        y.mul(&z);
+        y.mul(&z);
+        y.mul(&z);
+        let mut y2 = y.clone();
+        y2.sqr();
+        let mut rhs = GroupG2::rhs(&mut x);
+        assert!(y2.equals(&mut rhs));
+        let mut check = GroupG2::new_fp2s(&x, &y);
+        println!("{}", check.tostring());
     }
 
     #[test]
@@ -1817,5 +1726,51 @@ mod tests {
         println!("{}", a.tostring());
         println!("{}", b.tostring());
         println!("{}", c.tostring());
+    }
+
+    #[test]
+    pub fn print_projective_comparison() {
+        // Input hash from C impl input "asdf" + enter + ctrlD
+        let ta = BigNum::frombytes(&hex::decode("083c4b725ea72721fd133b1a64fe74fe493734baa5c238c8eb8ff2b47b17eb1fe764fb9aca8b57294dc56652b108292f").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("15ebf945b099fe69931f911ed8196267a4ee284617112f6968d97dc03c224a67e3f3ee14e02bb277142fa4b8d7cb421d").unwrap());
+        let t = FP2::new_bigs(&ta, &tb);
+
+        let (mut x, mut y, mut z) = hash_to_iso3_point(&t);
+        let mut res = iso3_to_g2(&x, &y, &z);
+        x = res.getpx();
+        y = res.getpy();
+        z = res.getpz();
+
+        z.inverse();
+        x.mul(&z);
+        y.mul(&z);
+        let mut y2 = y.clone();
+        y2.sqr();
+        let mut rhs = GroupG2::rhs(&mut x);
+        assert!(y2.equals(&mut rhs));
+
+        let ta = BigNum::frombytes(&hex::decode("0d2efc4cd887bf09697c7f6d44339a516880a1abbba94d866bfd79bc33305e6455dd912aa9f00c4cf85a28b8efaf94d1").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("15d056473defb4a623f02485e690a1fe0784b752a73db67ef59f3916acfaf83c8d81fe2056a1ce990e9bacda9ff68dce").unwrap());
+        let mut check_x = FP2::new_bigs(&ta, &tb);
+        let ta = BigNum::frombytes(&hex::decode("09be6a9ab65c71c0032b62241f5d918f3612dc39398864581470a14e2202737b95138c741242f006ad3b9d4becfc0392").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("13341bd4afe201c537b2296fb5f6648d18e61b9c34b88a5e4c3100cc66ceb28def66e2dd1373dde7eca82411b017d3e2").unwrap());
+        let mut check_y = FP2::new_bigs(&ta, &tb);
+        let ta = BigNum::frombytes(&hex::decode("0e9a57cd7d063db4fec8a9ad7038bd7d2d10e54b236dfb0ea0b0c325f1de31e2af6d6d30f45f21640ac7dcb579850ddd").unwrap());
+        let tb = BigNum::frombytes(&hex::decode("0ee55d9af654a21a4d9b811be5ef241dd7f9e1672b13b3cdee515b375c000bc35c32eac18cfa9b40f4588989ec4d0b73").unwrap());
+        let mut check_z = FP2::new_bigs(&ta, &tb);
+
+        check_z.inverse();
+        check_x.mul(&check_z);
+        check_x.mul(&check_z);
+        check_y.mul(&check_z);
+        check_y.mul(&check_z);
+        check_y.mul(&check_z);
+        let mut check_y2 = check_y.clone();
+        check_y2.sqr();
+        let mut rhs = GroupG2::rhs(&mut check_x);
+        assert!(check_y2.equals(&mut rhs));
+
+        let mut check = GroupG2::new_fp2s(&check_x, &check_y);
+        assert!(res.equals(&mut check));
     }
 }
