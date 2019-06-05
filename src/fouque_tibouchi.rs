@@ -1,5 +1,6 @@
 /* An implementation of the Fouque Tibouchi hash to curve.
-*
+* Paper: https://www.di.ens.fr/~fouque/pub/latincrypt12.pdf
+* Note this applies Shallue and van de Woestijne algorithm https://link.springer.com/chapter/10.1007%2F11792086_36
 */
 
 use super::amcl_utils::{BigNum, clear_g2_cofactor, FP, FP2, GroupG1, GroupG2, hash_to_field_g1, hash_to_field_g2};
