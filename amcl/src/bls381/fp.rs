@@ -472,7 +472,7 @@ impl FP {
     pub fn is_neg(&mut self) -> bool {
         let mut neg_a = self.clone();
         neg_a.neg();
-        BIG::comp(&self.redc(), &neg_a.redc()) < 0
+        BIG::comp(&self.redc(), &neg_a.redc()) > 0
     }
 
 }
