@@ -7,6 +7,9 @@ use super::g2::G2Point;
 use super::keys::PublicKey;
 use super::signature::Signature;
 
+// Messages should always be 32 bytes
+pub const MSG_LENGTH: usize = 32;
+
 /// Allows for the adding/combining of multiple BLS PublicKeys.
 ///
 /// This may be used to verify some AggregateSignature.
@@ -135,7 +138,7 @@ impl AggregateSignature {
         sig_point.affine();
 
         // Messages are 32 bytes and need a 1:1 ratio to AggregatePublicKeys
-        if msg.len() != 32 * avks.len() || avks.is_empty() {
+        if msg.len() != MSG_LENGTH * avks.len() || avks.is_empty() {
             return false;
         }
 
@@ -144,7 +147,8 @@ impl AggregateSignature {
         for (i, key) in avks.iter().enumerate() {
             let mut key_point = key.point.clone();
             key_point.affine();
-            let mut hash_point = hash_on_g2(&msg[i * 32..(i + 1) * 32], d);
+            // Messages should always be 32 bytes
+            let mut hash_point = hash_on_g2(&msg[i * MSG_LENGTH..(i + 1) * MSG_LENGTH], d);
             hash_point.affine();
             let pair = ate_pairing(&hash_point, key_point.as_raw());
             if i == 0 {
@@ -165,6 +169,39 @@ impl AggregateSignature {
             }
         };
         lhs.equals(&mut rhs)
+    }
+
+    /* Consider using the following function signature as it would porbably be alot faster
+    pub fn fast_thing<I, J, k>(agg_sigs: I, public_keys: J, msgs: K) -> bool
+    where I = Iterator<Item=AggregateSignature>, J = Iterator<Item=Iterator<Item=PublicKey>>, K = Iterator<Item=Iterator<Item=Vec<u8>> {
+    */
+    pub fn fast_verify_multiple(agg_sigs: &[AggregateSignature], public_keys: &[Vec<PublicKey>], msgs: &[Vec<Vec<u8>>]) -> bool {
+        // Should be same number of signatures as message and public key sets
+        if (agg_sigs.len() != public_keys.len() || agg_sigs.len() != msgs.len()) {
+            return false;
+        }
+
+        let mut final_agg_sig = GroupG2::new(); // Aggregates AggregateSignature
+        let mut msg_points: Vec<Vec<GroupG2>> = vec![vec![]]; // List msg * ri
+        let mut r = vec![0 as u64; agg_sigs.len()]; // Random values to multiply msgs & signatures
+
+        // Set r and multiply: msgs[i] * r[i] & agg_sigs[i] * r[i]
+        for (i, agg_sig) in agg_sigs.iter().enumerate() {
+            // Each set of messages should have an equivalent number of public keys
+            if public_key[i].len() != msgs[i].len() {
+                return false;
+            }
+
+            for msg in msgs[i] {
+                // Messages should always be 32 bytes
+                if msg.len() != MSG_LENGTH {
+                    return false;
+                }
+                let mut point = hash_on_g2(&msg);
+                msg_points[i].push();
+            }
+        }
+
     }
 
     /// Instatiate an AggregateSignature from some bytes.
