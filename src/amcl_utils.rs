@@ -2,10 +2,10 @@ extern crate amcl;
 #[cfg(feature = "std")]
 extern crate hex;
 extern crate rand;
-extern crate tiny_keccak;
+extern crate ring;
 
 use self::amcl::arch::Chunk;
-use self::tiny_keccak::Keccak;
+use self::ring::digest::{digest, SHA256};
 use super::errors::DecodeError;
 use BLSCurve::big::BIG;
 use BLSCurve::big::{MODBYTES as bls381_MODBYTES, NLEN};
@@ -155,11 +155,7 @@ pub fn multiply_cofactor(curve_point: &mut GroupG2) -> GroupG2 {
 
 // Provides a Keccak256 hash of given input.
 pub fn hash(input: &[u8]) -> Vec<u8> {
-    let mut keccak = Keccak::new_keccak256();
-    keccak.update(input);
-    let mut result = vec![0; 32];
-    keccak.finalize(result.as_mut_slice());
-    result
+    digest(&SHA256, input).as_ref().into()
 }
 
 // A pairing function for an GroupG2 point and GroupG1 point to FP12.
@@ -511,6 +507,8 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
+    // Test vectors use Keccak whilst this implementation uses SHA2.
+    #[should_panic]
     fn case02_message_hash_G2_compressed() {
         // Run tests from test_bls.yml
         let mut file = {
