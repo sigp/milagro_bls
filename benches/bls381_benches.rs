@@ -1,11 +1,11 @@
 extern crate amcl;
-extern crate bls_aggregates;
+extern crate milagro_bls;
 extern crate criterion;
 extern crate hex;
 extern crate rand;
 
 use self::amcl::bls381 as BLSCurve;
-use bls_aggregates::*;
+use milagro_bls::*;
 use criterion::{black_box, criterion_group, criterion_main, Benchmark, Criterion};
 use BLSCurve::big::BIG;
 use BLSCurve::ecp::ECP;
@@ -237,6 +237,75 @@ fn aggregate_verfication_multiple_messages(c: &mut Criterion) {
     );
 }
 
+fn aggregate_fast_verfication(c: &mut Criterion) {
+    let mut rng = rand::thread_rng();
+    let domain: u64 = 1;
+    let n = 10;
+    let m = 3;
+    let mut msgs: Vec<Vec<Vec<u8>>> = vec![vec![vec![]; m]; n];
+    let mut public_keys: Vec<Vec<PublicKey>> = vec![vec![]; n];
+    let mut aggregate_signatures: Vec<AggregateSignature> = vec![];
+
+    for i in 0..n {
+        let mut aggregate_signature = AggregateSignature::new();
+        for j in 0..m {
+            msgs[i][j] = vec![(j * i) as u8; 32];
+            let keypair = Keypair::random(&mut rng);
+            public_keys[i].push(keypair.pk);
+
+            let signature = Signature::new(&msgs[i][j], domain, &keypair.sk);
+            aggregate_signature.add(&signature);
+        }
+        aggregate_signatures.push(aggregate_signature);
+    }
+
+    c.bench(
+        "fast-verification-30",
+        Benchmark::new(
+            "Verification of multiple messages and public keys using signature aggregation with optimizations",
+            move |b| {
+                b.iter(|| {
+                    assert!(AggregateSignature::fast_verify_multiple(&mut rng, &aggregate_signatures, &public_keys, &msgs, domain));
+                })
+            },
+        )
+        .sample_size(10),
+    );
+
+    let mut rng = rand::thread_rng();
+    let n = 50;
+    let m = 5;
+    let mut msgs: Vec<Vec<Vec<u8>>> = vec![vec![vec![]; m]; n];
+    let mut public_keys: Vec<Vec<PublicKey>> = vec![vec![]; n];
+    let mut aggregate_signatures: Vec<AggregateSignature> = vec![];
+
+    for i in 0..n {
+        let mut aggregate_signature = AggregateSignature::new();
+        for j in 0..m {
+            msgs[i][j] = vec![(j * i) as u8; 32];
+            let keypair = Keypair::random(&mut rng);
+            public_keys[i].push(keypair.pk);
+
+            let signature = Signature::new(&msgs[i][j], domain, &keypair.sk);
+            aggregate_signature.add(&signature);
+        }
+        aggregate_signatures.push(aggregate_signature);
+    }
+
+    c.bench(
+        "fast-verification-150",
+        Benchmark::new(
+            "Verification of multiple messages and public keys using signature aggregation with optimizations",
+            move |b| {
+                b.iter(|| {
+                    assert!(AggregateSignature::fast_verify_multiple(&mut rng, &aggregate_signatures, &public_keys, &msgs, domain));
+                })
+            },
+        )
+        .sample_size(10),
+    );
+}
+
 fn key_generation(c: &mut Criterion) {
     c.bench(
         "key generation",
@@ -270,6 +339,7 @@ criterion_group!(
     aggregation,
     aggregate_verfication,
     aggregate_verfication_multiple_messages,
+    aggregate_fast_verfication,
     key_generation
 );
 criterion_main!(benches);
