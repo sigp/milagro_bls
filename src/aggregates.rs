@@ -848,6 +848,12 @@ mod tests {
             aggregate_signatures.push(aggregate_signature);
         }
 
-        assert!(super::AggregateSignature::fast_verify_multiple(&mut rng, &aggregate_signatures, &public_keys, &msgs, domain));
+        assert!(super::AggregateSignature::fast_verify_multiple(
+            &mut rng,
+            &aggregate_signatures,
+            &public_keys,
+            &msgs,
+            domain
+        ));
     }
 }
