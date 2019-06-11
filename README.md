@@ -16,6 +16,11 @@ rouge-key attack.
 There has been no public audit or scrutiny placed upon this crate. If you're a
 cryptographer I would love to have your input.
 
+## Comparison to Standard
+The current BLS standard can be found at [standard](https://github.com/pairingwg/bls_standard/blob/master/minutes/spec-v1.md) and [reference implementation](https://github.com/kwantam/bls_sigs_ref).
+
+The underlying Apache Milagro library uses Standard Project Coordinates (xZ, yZ, Z), however the reference implmentation and [paper](https://eprint.iacr.org/2019/403) use Projectives in the form (xZ^2, yZ^3, Z). Hence some changes have been made to convert the final projective form to match that of Apache Milagro. Both implementations will give the same (x, y) form and hence the implementations are equivalent.
+
 ## Usage
 
 ### Single Signatures
