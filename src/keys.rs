@@ -1,11 +1,13 @@
 extern crate amcl;
 extern crate rand;
+extern crate zeroize;
 
 use super::amcl_utils::{self, BigNum, GroupG1, CURVE_ORDER, MOD_BYTE_SIZE};
 use super::errors::DecodeError;
 use super::g1::G1Point;
 use super::rng::get_seeded_rng;
 use rand::Rng;
+use self::zeroize::Zeroize;
 #[cfg(feature = "std")]
 use std::fmt;
 
@@ -59,6 +61,12 @@ impl PartialEq for SecretKey {
 
 impl Eq for SecretKey {}
 
+impl Drop for SecretKey {
+    fn drop(&mut self) {
+        self.x.w.zeroize();
+    }
+}
+
 /// A BLS public key.
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Debug))]
@@ -73,11 +81,11 @@ impl PublicKey {
             point: {
                 #[cfg(feature = "std")]
                 {
-                    G1Point::from_raw(amcl_utils::GENERATORG1.mul(&sk.x))
+                    G1Point::from_raw(amcl_utils::GENERATORG1.mul_secret_key(&sk.x))
                 }
                 #[cfg(not(feature = "std"))]
                 {
-                    G1Point::from_raw(amcl_utils::GroupG1::generator().mul(&sk.x))
+                    G1Point::from_raw(amcl_utils::GroupG1::generator().mul_secret_key(&sk.x))
                 }
             },
         }

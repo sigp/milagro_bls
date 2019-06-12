@@ -16,12 +16,14 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 */
+extern crate zeroize;
 
 use bls381::rom;
 use bls381::big;
 use bls381::ecp;
 use bls381::fp2::FP2;
 use bls381::big::BIG;
+use self::zeroize::Zeroize;
 
 #[derive(Copy, Clone)]
 pub struct ECP2 {
@@ -634,6 +636,81 @@ impl ECP2 {
 		return ECP2::new_fp2s(&FP2::new_bigs(&BIG::new_ints(&rom::CURVE_PXA),&BIG::new_ints(&rom::CURVE_PXB)),&FP2::new_bigs(&BIG::new_ints(&rom::CURVE_PYA),&BIG::new_ints(&rom::CURVE_PYB)));
 	}
 
+	// self*=e and zeroize all instances of e and related data
+	pub fn mul_secret_key(&self,e: &BIG) -> ECP2 {
+		// fixed size windows
+		let mut mt=BIG::new();
+		let mut t=BIG::new();
+		let mut P=ECP2::new();
+		let mut Q=ECP2::new();
+		let mut C=ECP2::new();
+
+		if self.is_infinity() {return P}
+
+		let mut W:[ECP2;8]=[ECP2::new(),ECP2::new(),ECP2::new(),ECP2::new(),ECP2::new(),ECP2::new(),ECP2::new(),ECP2::new()];
+
+		const CT:usize=1+(big::NLEN*(big::BASEBITS as usize)+3)/4;
+		let mut w:[i8;CT]=[0;CT];
+
+		//	self.affine();
+
+		// precompute table
+		Q.copy(&self);
+		Q.dbl();
+
+		W[0].copy(&self);
+
+		for i in 1..8 {
+			C.copy(&W[i-1]);
+			W[i].copy(&C);
+			W[i].add(&mut Q);
+		}
+
+		// make exponent odd - add 2P if even, P if odd
+		t.copy(&e);
+		let mut s=t.parity();
+		t.inc(1);
+		t.norm();
+		let mut ns = t.parity();
+		mt.copy(&t);
+		mt.inc(1);
+		mt.norm();
+		t.cmove(&mt, s);
+		Q.cmove(&self, ns);
+		C.copy(&Q);
+
+		let mut nb = 1 + (t.nbits() + 3) / 4;
+
+		// convert exponent to signed 4-bit window
+		for i in 0..nb {
+			w[i] = (t.lastbits(5)-16) as i8;
+			t.dec(w[i] as isize);
+			t.norm();
+			t.fshr(4);
+		}
+		w[nb] = (t.lastbits(5)) as i8;
+
+		P.copy(&W[((w[nb] as usize) -1)/2]);
+		for i in (0..nb).rev() {
+			Q.selector(&W,w[i] as i32);
+			P.dbl();
+			P.dbl();
+			P.dbl();
+			P.dbl();
+			P.add(&mut Q);
+		}
+		P.sub(&mut C);
+		P.affine();
+
+		// Zeroize variables that may leak information
+		t.w.zeroize();
+		mt.w.zeroize();
+		s.zeroize();
+		ns.zeroize();
+		w.zeroize();
+		nb.zeroize();
+		return P;
+	}
 }
 /*
 fn main()
