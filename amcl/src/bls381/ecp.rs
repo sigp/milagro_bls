@@ -16,11 +16,13 @@ KIND, either express or implied.  See the License for the
 specific language governing permissions and limitations
 under the License.
 */
+extern crate zeroize;
 
 use bls381::fp::FP;
 use bls381::big::BIG;
 use bls381::big;
 use bls381::rom;
+use self::zeroize::Zeroize;
 
 #[derive(Copy, Clone)]
 pub struct ECP {
@@ -1023,6 +1025,73 @@ impl ECP {
 		return G;
 	}
 
+	// return e.self
+	pub fn mul_secret_key(&self,e:&BIG) -> ECP {
+		if e.iszilch() || self.is_infinity() {return ECP::new()}
+		let mut P=ECP::new();
+		// fixed size windows
+		let mut mt=BIG::new();
+		let mut t=BIG::new();
+		let mut Q=ECP::new();
+		let mut C=ECP::new();
+
+	 	let mut W:[ECP;8]=[ECP::new(),ECP::new(),ECP::new(),ECP::new(),ECP::new(),ECP::new(),ECP::new(),ECP::new()];
+
+	 	const CT:usize=1+(big::NLEN*(big::BASEBITS as usize)+3)/4;
+		let mut w:[i8;CT]=[0;CT];
+
+		//	self.affine();
+
+		Q.copy(&self);
+		Q.dbl();
+
+		W[0].copy(&self);
+
+		for i in 1..8 {
+			C.copy(&W[i-1]);
+			W[i].copy(&C);
+			W[i].add(&mut Q);
+		}
+
+		// make exponent odd - add 2P if even, P if odd
+		t.copy(&e);
+		let mut s = t.parity();
+		t.inc(1); t.norm(); let mut ns=t.parity(); mt.copy(&t); mt.inc(1); mt.norm();
+		t.cmove(&mt,s);
+		Q.cmove(&self,ns);
+		C.copy(&Q);
+
+		let nb=1+(t.nbits()+3)/4;
+
+		// convert exponent to signed 4-bit window
+		for i in 0..nb {
+			w[i]=(t.lastbits(5)-16) as i8;
+			t.dec(w[i] as isize); t.norm();
+			t.fshr(4);
+		}
+		w[nb]=t.lastbits(5) as i8;
+
+		P.copy(&W[((w[nb] as usize)-1)/2]);
+		for i in (0..nb).rev() {
+			Q.selector(&W,w[i] as i32);
+			P.dbl();
+			P.dbl();
+			P.dbl();
+			P.dbl();
+			P.add(&mut Q);
+		}
+		P.sub(&mut C); /* apply correction */
+
+		P.affine();
+
+		// Zeroize variables related to secret key
+		t.w.zeroize();
+		mt.w.zeroize();
+		w.zeroize();
+		s.zeroize();
+		ns.zeroize();
+		return P;
+	}
 }
 /*
 fn main()
