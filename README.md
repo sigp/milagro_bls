@@ -111,3 +111,10 @@ let agg_pub_key = AggregatePublicKey::
 /// Verify the AggregateSignature against the AggregatePublicKey
 assert!(agg_sig.verify(&message, &agg_pub_key));
 ```
+
+### How to Run Benchmarks
+
+```
+cargo bench --features "bench"
+```
+
