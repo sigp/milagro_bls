@@ -1,12 +1,12 @@
 extern crate amcl;
-extern crate bls_aggregates;
 extern crate criterion;
 extern crate hex;
+extern crate milagro_bls;
 extern crate rand;
 
 use self::amcl::bls381 as BLSCurve;
-use bls_aggregates::*;
 use criterion::{black_box, criterion_group, criterion_main, Benchmark, Criterion};
+use milagro_bls::*;
 use BLSCurve::big::BIG;
 use BLSCurve::ecp::ECP;
 
