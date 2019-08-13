@@ -4,7 +4,7 @@
 
 **WARNING: This is an experiemental library and the cryptography is NOT SAFE!**
 
-Uses the [The Apache Milagro Cryptographic Library](https://github.com/milagro-crypto/amcl).
+Uses the [The Apache Milagro Cryptographic Library](https://github.com/apache/incubator-milagro-crypto-rust).
 
 This crate is heavily based upon work by
 [@lovesh](https://github.com/lovesh).
@@ -116,3 +116,10 @@ let agg_pub_key = AggregatePublicKey::
 /// Verify the AggregateSignature against the AggregatePublicKey
 assert!(agg_sig.verify(&message, &agg_pub_key));
 ```
+
+### How to Run Benchmarks
+
+```
+cargo bench --features "bench"
+```
+

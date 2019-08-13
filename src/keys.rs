@@ -1,6 +1,8 @@
 extern crate amcl;
 extern crate rand;
+extern crate zeroize;
 
+use self::zeroize::Zeroize;
 use super::amcl_utils::{self, BigNum, GroupG1, CURVE_ORDER, MOD_BYTE_SIZE};
 use super::errors::DecodeError;
 use super::g1::G1Point;
@@ -58,6 +60,12 @@ impl PartialEq for SecretKey {
 }
 
 impl Eq for SecretKey {}
+
+impl Drop for SecretKey {
+    fn drop(&mut self) {
+        self.x.w.zeroize();
+    }
+}
 
 /// A BLS public key.
 #[derive(Clone, PartialEq, Eq)]

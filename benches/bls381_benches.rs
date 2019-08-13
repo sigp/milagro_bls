@@ -1,16 +1,16 @@
 extern crate amcl;
-extern crate bls_aggregates;
 extern crate criterion;
 extern crate hex;
+extern crate milagro_bls;
 extern crate rand;
 
 use self::amcl::bls381 as BLSCurve;
-use bls_aggregates::*;
 use criterion::{black_box, criterion_group, criterion_main, Benchmark, Criterion};
-use BLSCurve::big::BIG;
+use milagro_bls::*;
+use BLSCurve::big::Big;
 use BLSCurve::ecp::ECP;
 
-pub type BigNum = BIG;
+pub type BigNum = Big;
 pub type GroupG1 = ECP;
 
 fn compression_signature(c: &mut Criterion) {
@@ -101,7 +101,7 @@ fn signing(c: &mut Criterion) {
     let mut sks = vec![sk.clone(); 100];
     let mut sigs = vec![Signature::new(&msg.as_bytes(), domain, &sk); 100];
     for i in 0..100 {
-        let keypair = Keypair::random();
+        let keypair = Keypair::random(&mut rand::thread_rng());
         pks[i] = keypair.pk;
         sks[i] = keypair.sk;
         sigs[i] = Signature::new(&msg.as_bytes(), domain, &sks[i as usize]);

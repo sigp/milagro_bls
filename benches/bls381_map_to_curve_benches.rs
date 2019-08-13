@@ -1,15 +1,15 @@
 extern crate amcl;
-extern crate bls_aggregates;
+extern crate milagro_bls;
 extern crate criterion;
 extern crate hex;
 
 use self::amcl::bls381 as BLSCurve;
-use bls_aggregates::*;
+use milagro_bls::*;
 use criterion::{black_box, criterion_group, criterion_main, Benchmark, Criterion};
-use BLSCurve::big::BIG;
+use BLSCurve::big::Big;
 use BLSCurve::ecp::ECP;
 
-pub type BigNum = BIG;
+pub type BigNum = Big;
 pub type GroupG1 = ECP;
 
 fn g1(c: &mut Criterion) {
@@ -84,7 +84,7 @@ fn g2(c: &mut Criterion) {
         Benchmark::new("Optimised SWU x100", move |b| {
             b.iter(|| {
                 for i in 0..100 {
-                    black_box(optimised_sw_g2(&msg, i));
+                    black_box(optimised_swu_g2_twice(&msg, i));
                 }
             })
         })
@@ -108,7 +108,7 @@ fn g2(c: &mut Criterion) {
         Benchmark::new("Optimised SWU Twice x100", move |b| {
             b.iter(|| {
                 for i in 0..100 {
-                    black_box(optimised_sw_g2_twice(&msg, i));
+                    black_box(optimised_swu_g2_twice(&msg, i));
                 }
             })
         })
