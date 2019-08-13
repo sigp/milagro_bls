@@ -8,10 +8,9 @@ use self::ring::digest::{digest, SHA256};
 use super::errors::DecodeError;
 use super::fouque_tibouchi::{fouque_tibouchi_g1, fouque_tibouchi_g2, fouque_tibouchi_twice_g1, fouque_tibouchi_twice_g2};
 use super::optimised_swu::{optimised_swu_g2, optimised_swu_g2_twice};
-use super ::psi_cofactor::clear_g2_psi;
-use BLSCurve::big::BIG;
-use BLSCurve::big::{MODBYTES, NLEN};
-use BLSCurve::dbig::DBIG;
+use super::psi_cofactor::clear_g2_psi;
+use BLSCurve::big::{Big, MODBYTES, NLEN};
+use BLSCurve::dbig::DBig;
 use BLSCurve::ecp::ECP;
 use BLSCurve::ecp2::ECP2;
 use BLSCurve::fp::FP as bls381_FP;
@@ -20,8 +19,8 @@ use BLSCurve::fp2::FP2 as bls381_FP2;
 use BLSCurve::pair::{ate, fexp};
 use BLSCurve::rom;
 
-pub type DBigNum = DBIG;
-pub type BigNum = BIG;
+pub type DBigNum = DBig;
+pub type BigNum = Big;
 pub type GroupG1 = ECP;
 pub type GroupG2 = ECP2;
 
@@ -94,13 +93,13 @@ pub fn hash_to_field_g1(msg: &[u8], ctr: u8) ->  FP {
         t.append(&mut hash(&[msg, &[ctr, 0, j]].concat()));
     }
 
-    // Increase length of 't' to size of DBIG (96 bytes)
+    // Increase length of 't' to size of DBig (96 bytes)
     for _ in t.len() .. MODBYTES * 2 {
         t.push(0);
     }
 
     // Modulate the t by p
-    let mut dbig_t = DBIG::frombytes(&t);
+    let mut dbig_t = DBig::frombytes(&t);
     let p = BigNum::new_ints(&rom::MODULUS);
     let e = dbig_t.dmod(&p);
 
@@ -121,12 +120,12 @@ pub fn hash_to_field_g2(msg: &[u8], ctr: u8) ->  FP2 {
             t.append(&mut hash(&[msg, &[ctr, i, j]].concat()));
         }
 
-        // Increase t to size of DBIG (96 bytes)
+        // Increase t to size of DBig (96 bytes)
         let mut buf = vec![0; MODBYTES * 2 - t.len()];
         buf.append(&mut t);
 
         // Modulate the t by p
-        let mut dbig_t = DBIG::frombytes(&buf);
+        let mut dbig_t = DBig::frombytes(&buf);
         let p = BigNum::new_ints(&rom::MODULUS);
         e[(i - 1) as usize] = dbig_t.dmod(&p);
     }

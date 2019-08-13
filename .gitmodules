@@ -1,3 +1,4 @@
 [submodule "incubator-milagro-crypto-rust"]
 	path = incubator-milagro-crypto-rust
 	url = git@github.com:sigp/incubator-milagro-crypto-rust
+	branch = bls-standard
