@@ -84,7 +84,7 @@ fn g2(c: &mut Criterion) {
         Benchmark::new("Optimised SWU x100", move |b| {
             b.iter(|| {
                 for i in 0..100 {
-                    black_box(optimised_swu_g2_twice(&msg, i));
+                    black_box(optimised_swu_g2(&msg, i));
                 }
             })
         })
