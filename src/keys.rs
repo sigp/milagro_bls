@@ -3,7 +3,7 @@ extern crate rand;
 
 use super::amcl_utils::{self, BigNum, GroupG1, CURVE_ORDER, MOD_BYTE_SIZE};
 use super::errors::DecodeError;
-use super::g1::G1Point;
+use super::g1::{G1Point, G1Wrapper};
 use super::rng::get_seeded_rng;
 use rand::Rng;
 #[cfg(feature = "std")]
@@ -58,6 +58,12 @@ impl PartialEq for SecretKey {
 }
 
 impl Eq for SecretKey {}
+
+impl G1Wrapper for PublicKey {
+    fn point(&self) -> &G1Point {
+        &self.point
+    }
+}
 
 /// A BLS public key.
 #[derive(Clone, PartialEq, Eq)]
