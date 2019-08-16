@@ -176,31 +176,33 @@ impl AggregateSignature {
         lhs.equals(&mut rhs)
     }
 
-    /* Consider using the following function signature as it would porbably be alot faster
-    pub fn fast_thing<I, J, k>(agg_sigs: I, public_keys: J, msgs: K) -> bool
-    where I = Iterator<Item=AggregateSignature>, J = Iterator<Item=Iterator<Item=PublicKey>>, K = Iterator<Item=Iterator<Item=Vec<u8>> {
-    */
-    pub fn verify_multiple_signatures<'a, R, I, P>(rng: &mut R, signature_sets: I) -> bool
+    pub fn verify_multiple_signatures<'a, R, I>(rng: &mut R, signature_sets: I) -> bool
     where
         R: Rng + ?Sized,
-        I: Iterator<Item = (&'a AggregateSignature, &'a [P], &'a [Vec<u8>], u64)>,
-        P: 'a + G1Wrapper + Sized,
+        I: Iterator<
+            Item = (
+                &'a AggregateSignature,
+                &'a [&'a G1Point],
+                &'a [Vec<u8>],
+                u64,
+            ),
+        >,
     {
         let mut final_agg_sig = GroupG2::new(); // Aggregates AggregateSignature
         let mut lhs = FP12::new(); // e(H(1,1), P(1,1)) * e(H(1,2), P(1,2)) * ... * e(H(n,m), P(n,m))
         lhs.one();
 
-        signature_sets.for_each(|(agg_sig, pubkeys, msgs, domain)| {
+        signature_sets.for_each(|(agg_sig, g1_points, msgs, domain)| {
             let mut rand = [0 as u8; 8]; // bytes
             rng.fill(&mut rand);
             let rand = i64::from_be_bytes(rand).abs(); // i64 > 0
             let rand = BigNum::new_int(rand as isize); // BigNum
 
-            msgs.iter().zip(pubkeys).for_each(|(msg, pubkey)| {
+            msgs.iter().zip(g1_points).for_each(|(msg, g1_point)| {
                 let mut hash_point = hash_on_g2(msg, domain);
                 hash_point.affine();
 
-                let mut public_key = pubkey.point().as_raw().clone();
+                let mut public_key = g1_point.as_raw().clone();
                 public_key.mul(&rand);
                 public_key.affine();
 
@@ -926,15 +928,17 @@ mod tests {
         let n = 10;
         let m = 3;
         let mut msgs: Vec<Vec<Vec<u8>>> = vec![vec![vec![]; m]; n];
-        let mut public_keys: Vec<Vec<PublicKey>> = vec![vec![]; n];
+        let mut public_keys: Vec<Vec<&G1Point>> = vec![vec![]; n];
         let mut aggregate_signatures: Vec<AggregateSignature> = vec![];
+
+        let keypairs: Vec<Keypair> = (0..n * m).map(|_| Keypair::random(&mut rng)).collect();
 
         for i in 0..n {
             let mut aggregate_signature = AggregateSignature::new();
             for j in 0..m {
                 msgs[i][j] = vec![(j * i) as u8; 32];
-                let keypair = Keypair::random(&mut rng);
-                public_keys[i].push(keypair.pk);
+                let keypair = &keypairs[i * m + j];
+                public_keys[i].push(&keypair.pk.point);
 
                 let signature = Signature::new(&msgs[i][j], domain, &keypair.sk);
                 aggregate_signature.add(&signature);
