@@ -180,49 +180,40 @@ impl AggregateSignature {
     pub fn fast_thing<I, J, k>(agg_sigs: I, public_keys: J, msgs: K) -> bool
     where I = Iterator<Item=AggregateSignature>, J = Iterator<Item=Iterator<Item=PublicKey>>, K = Iterator<Item=Iterator<Item=Vec<u8>> {
     */
-    pub fn verify_multiple_signatures<'a, R: Rng + ?Sized, P: 'a + G1Wrapper + Sized>(
-        rng: &mut R,
-        agg_sigs: impl Iterator<Item = &'a AggregateSignature>,
-        public_keys: impl Iterator<Item = &'a [P]>,
-        msgs: impl Iterator<Item = &'a [Vec<u8>]>,
-        domains: impl Iterator<Item = u64>,
-    ) -> bool {
+    pub fn verify_multiple_signatures<'a, R, I, P>(rng: &mut R, signature_sets: I) -> bool
+    where
+        R: Rng + ?Sized,
+        I: Iterator<Item = (&'a AggregateSignature, &'a [P], &'a [Vec<u8>], u64)>,
+        P: 'a + G1Wrapper + Sized,
+    {
         let mut final_agg_sig = GroupG2::new(); // Aggregates AggregateSignature
         let mut lhs = FP12::new(); // e(H(1,1), P(1,1)) * e(H(1,2), P(1,2)) * ... * e(H(n,m), P(n,m))
         lhs.one();
 
-        agg_sigs
-            .map(|agg_sig| {
-                let mut r = [0 as u8; 8]; // bytes
-                rng.fill(&mut r);
-                let r = i64::from_be_bytes(r).abs(); // i64 > 0
-                let r = BigNum::new_int(r as isize); // BigNum
+        signature_sets.for_each(|(agg_sig, pubkeys, msgs, domain)| {
+            let mut rand = [0 as u8; 8]; // bytes
+            rng.fill(&mut rand);
+            let rand = i64::from_be_bytes(rand).abs(); // i64 > 0
+            let rand = BigNum::new_int(rand as isize); // BigNum
 
-                (r, agg_sig)
-            })
-            .zip(msgs)
-            .zip(public_keys)
-            .zip(domains)
-            .map(|((((a, b), c), d), e)| (a, b, c, d, e))
-            .for_each(|(rand, agg_sig, msgs, pubkeys, domain)| {
-                msgs.iter().zip(pubkeys).for_each(|(msg, pubkey)| {
-                    let mut hash_point = hash_on_g2(&msg, domain);
-                    hash_point.affine();
+            msgs.iter().zip(pubkeys).for_each(|(msg, pubkey)| {
+                let mut hash_point = hash_on_g2(msg, domain);
+                hash_point.affine();
 
-                    let mut public_key = pubkey.point().as_raw().clone();
-                    public_key.mul(&rand);
-                    public_key.affine();
+                let mut public_key = pubkey.point().as_raw().clone();
+                public_key.mul(&rand);
+                public_key.affine();
 
-                    // Update LHS - multiply by current pair
-                    let pair = ate_pairing(&hash_point, &public_key);
-                    lhs.mul(&pair);
-                });
-
-                // Multiply Signature by r and add it to final aggregate signature
-                let temp_sig = agg_sig.point.as_raw().clone();
-                temp_sig.mul(&rand); // AggregateSignature[i] * r
-                final_agg_sig.add(&temp_sig);
+                // Update LHS - multiply by current pair
+                let pair = ate_pairing(&hash_point, &public_key);
+                lhs.mul(&pair);
             });
+
+            // Multiply Signature by r and add it to final aggregate signature
+            let temp_sig = agg_sig.point.as_raw().clone();
+            temp_sig.mul(&rand); // AggregateSignature[i] * r
+            final_agg_sig.add(&temp_sig);
+        });
 
         final_agg_sig.affine();
 
@@ -951,13 +942,16 @@ mod tests {
             aggregate_signatures.push(aggregate_signature);
         }
 
-        let valid = super::AggregateSignature::verify_multiple_signatures(
-            &mut rng,
-            aggregate_signatures.iter(),
-            public_keys.iter().map(|p| &p[..]),
-            msgs.iter().map(|v| &v[..]),
-            vec![domain; msgs.len()].iter().cloned(),
-        );
+        let domains = vec![domain; msgs.len()];
+
+        let mega_iter = aggregate_signatures
+            .iter()
+            .zip(public_keys.iter().map(|p| &p[..]))
+            .zip(msgs.iter().map(|v| &v[..]))
+            .zip(domains.iter().cloned())
+            .map(|(((a, b), c), d)| (a, b, c, d));
+
+        let valid = super::AggregateSignature::verify_multiple_signatures(&mut rng, mega_iter);
 
         assert!(valid);
     }
