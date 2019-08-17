@@ -179,7 +179,7 @@ impl AggregateSignature {
     pub fn verify_multiple_signatures<'a, R, I>(rng: &mut R, signature_sets: I) -> bool
     where
         R: Rng + ?Sized,
-        I: Iterator<Item = (G2Point, &'a [G1Point], Vec<Vec<u8>>, u64)>,
+        I: Iterator<Item = (G2Point, Vec<G1Point>, Vec<Vec<u8>>, u64)>,
     {
         let mut final_agg_sig = GroupG2::new(); // Aggregates AggregateSignature
         let mut lhs = FP12::new(); // e(H(1,1), P(1,1)) * e(H(1,2), P(1,2)) * ... * e(H(n,m), P(n,m))
@@ -191,18 +191,20 @@ impl AggregateSignature {
             let rand = i64::from_be_bytes(rand).abs(); // i64 > 0
             let rand = BigNum::new_int(rand as isize); // BigNum
 
-            msgs.iter().zip(g1_points).for_each(|(msg, g1_point)| {
-                let mut hash_point = hash_on_g2(msg, domain);
-                hash_point.affine();
+            msgs.into_iter()
+                .zip(g1_points.into_iter())
+                .for_each(|(msg, g1_point)| {
+                    let mut hash_point = hash_on_g2(&msg, domain);
+                    hash_point.affine();
 
-                let mut public_key = g1_point.into_raw();
-                public_key.mul(&rand);
-                public_key.affine();
+                    let mut public_key = g1_point.into_raw();
+                    public_key.mul(&rand);
+                    public_key.affine();
 
-                // Update LHS - multiply by current pair
-                let pair = ate_pairing(&hash_point, &public_key);
-                lhs.mul(&pair);
-            });
+                    // Update LHS - multiply by current pair
+                    let pair = ate_pairing(&hash_point, &public_key);
+                    lhs.mul(&pair);
+                });
 
             // Multiply Signature by r and add it to final aggregate signature
             let temp_sig = g2_point.as_raw().clone();
@@ -944,7 +946,7 @@ mod tests {
         let mega_iter = aggregate_signatures
             .into_iter()
             .map(|agg_sig| agg_sig.point)
-            .zip(public_keys.iter().map(|p| &p[..]))
+            .zip(public_keys.iter().cloned())
             .zip(msgs.into_iter())
             .zip(domains.iter().cloned())
             .map(|(((a, b), c), d)| (a, b, c, d));
