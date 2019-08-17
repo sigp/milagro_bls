@@ -179,14 +179,7 @@ impl AggregateSignature {
     pub fn verify_multiple_signatures<'a, R, I>(rng: &mut R, signature_sets: I) -> bool
     where
         R: Rng + ?Sized,
-        I: Iterator<
-            Item = (
-                &'a AggregateSignature,
-                &'a [&'a G1Point],
-                &'a [Vec<u8>],
-                u64,
-            ),
-        >,
+        I: Iterator<Item = (&'a G2Point, &'a [&'a G1Point], Vec<Vec<u8>>, u64)>,
     {
         let mut final_agg_sig = GroupG2::new(); // Aggregates AggregateSignature
         let mut lhs = FP12::new(); // e(H(1,1), P(1,1)) * e(H(1,2), P(1,2)) * ... * e(H(n,m), P(n,m))
@@ -212,7 +205,7 @@ impl AggregateSignature {
             });
 
             // Multiply Signature by r and add it to final aggregate signature
-            let temp_sig = agg_sig.point.as_raw().clone();
+            let temp_sig = agg_sig.clone();
             temp_sig.mul(&rand); // AggregateSignature[i] * r
             final_agg_sig.add(&temp_sig);
         });
@@ -951,7 +944,7 @@ mod tests {
         let mega_iter = aggregate_signatures
             .iter()
             .zip(public_keys.iter().map(|p| &p[..]))
-            .zip(msgs.iter().map(|v| &v[..]))
+            .zip(msgs.into_iter())
             .zip(domains.iter().cloned())
             .map(|(((a, b), c), d)| (a, b, c, d));
 
