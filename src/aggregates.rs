@@ -185,7 +185,7 @@ impl AggregateSignature {
         let mut lhs = FP12::new(); // e(H(1,1), P(1,1)) * e(H(1,2), P(1,2)) * ... * e(H(n,m), P(n,m))
         lhs.one();
 
-        signature_sets.for_each(|(agg_sig, g1_points, msgs, domain)| {
+        signature_sets.for_each(|(g2_point, g1_points, msgs, domain)| {
             let mut rand = [0 as u8; 8]; // bytes
             rng.fill(&mut rand);
             let rand = i64::from_be_bytes(rand).abs(); // i64 > 0
@@ -205,7 +205,7 @@ impl AggregateSignature {
             });
 
             // Multiply Signature by r and add it to final aggregate signature
-            let temp_sig = agg_sig.clone();
+            let temp_sig = g2_point.as_raw().clone();
             temp_sig.mul(&rand); // AggregateSignature[i] * r
             final_agg_sig.add(&temp_sig);
         });
@@ -943,6 +943,7 @@ mod tests {
 
         let mega_iter = aggregate_signatures
             .iter()
+            .map(|agg_sig| &agg_sig.point)
             .zip(public_keys.iter().map(|p| &p[..]))
             .zip(msgs.into_iter())
             .zip(domains.iter().cloned())
