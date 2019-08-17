@@ -42,6 +42,10 @@ impl G1Point {
         &self.point
     }
 
+    pub fn into_raw(&self) -> GroupG1 {
+        self.point
+    }
+
     pub fn getx(&mut self) -> BigNum {
         self.point.getx()
     }

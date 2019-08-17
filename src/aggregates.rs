@@ -179,7 +179,7 @@ impl AggregateSignature {
     pub fn verify_multiple_signatures<'a, R, I>(rng: &mut R, signature_sets: I) -> bool
     where
         R: Rng + ?Sized,
-        I: Iterator<Item = (&'a G2Point, &'a [&'a G1Point], Vec<Vec<u8>>, u64)>,
+        I: Iterator<Item = (G2Point, &'a [G1Point], Vec<Vec<u8>>, u64)>,
     {
         let mut final_agg_sig = GroupG2::new(); // Aggregates AggregateSignature
         let mut lhs = FP12::new(); // e(H(1,1), P(1,1)) * e(H(1,2), P(1,2)) * ... * e(H(n,m), P(n,m))
@@ -195,7 +195,7 @@ impl AggregateSignature {
                 let mut hash_point = hash_on_g2(msg, domain);
                 hash_point.affine();
 
-                let mut public_key = g1_point.as_raw().clone();
+                let mut public_key = g1_point.into_raw();
                 public_key.mul(&rand);
                 public_key.affine();
 
@@ -503,7 +503,7 @@ mod tests {
             /*
              * A set of keys which did not sign the message at all should fail
              */
-            let mut non_signing_pub_keys: Vec<&PublicKey> =
+            let non_signing_pub_keys: Vec<&PublicKey> =
                 non_signing_kps.iter().map(|kp| &kp.pk).collect();
             let non_signing_agg_key =
                 AggregatePublicKey::from_public_keys(&non_signing_pub_keys.as_slice());
@@ -921,7 +921,7 @@ mod tests {
         let n = 10;
         let m = 3;
         let mut msgs: Vec<Vec<Vec<u8>>> = vec![vec![vec![]; m]; n];
-        let mut public_keys: Vec<Vec<&G1Point>> = vec![vec![]; n];
+        let mut public_keys: Vec<Vec<G1Point>> = vec![vec![]; n];
         let mut aggregate_signatures: Vec<AggregateSignature> = vec![];
 
         let keypairs: Vec<Keypair> = (0..n * m).map(|_| Keypair::random(&mut rng)).collect();
@@ -931,7 +931,7 @@ mod tests {
             for j in 0..m {
                 msgs[i][j] = vec![(j * i) as u8; 32];
                 let keypair = &keypairs[i * m + j];
-                public_keys[i].push(&keypair.pk.point);
+                public_keys[i].push(keypair.pk.point.clone());
 
                 let signature = Signature::new(&msgs[i][j], domain, &keypair.sk);
                 aggregate_signature.add(&signature);
@@ -942,8 +942,8 @@ mod tests {
         let domains = vec![domain; msgs.len()];
 
         let mega_iter = aggregate_signatures
-            .iter()
-            .map(|agg_sig| &agg_sig.point)
+            .into_iter()
+            .map(|agg_sig| agg_sig.point)
             .zip(public_keys.iter().map(|p| &p[..]))
             .zip(msgs.into_iter())
             .zip(domains.iter().cloned())
