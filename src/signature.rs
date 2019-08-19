@@ -1,6 +1,6 @@
 extern crate amcl;
 
-use super::amcl_utils::{self, ate_pairing, hash_on_g2, map_to_g2};
+use super::amcl_utils::{self, ate2_evaluation, ate_pairing, hash_on_g2, map_to_g2};
 use super::errors::DecodeError;
 use super::g2::G2Point;
 use super::keys::{PublicKey, SecretKey};
@@ -40,18 +40,16 @@ impl Signature {
     pub fn verify(&self, msg: &[u8], d: u64, pk: &PublicKey) -> bool {
         let mut msg_hash_point = hash_on_g2(msg, d);
         msg_hash_point.affine();
-        let mut lhs = {
-            #[cfg(feature = "std")]
-            {
-                ate_pairing(self.point.as_raw(), &amcl_utils::GENERATORG1)
-            }
-            #[cfg(not(feature = "std"))]
-            {
-                ate_pairing(self.point.as_raw(), &amcl_utils::GroupG1::generator())
-            }
-        };
-        let mut rhs = ate_pairing(&msg_hash_point, &pk.point.as_raw());
-        lhs.equals(&mut rhs)
+
+        // Faster ate2 evaualtion checks e(S, -G1) * e(H, PK) == 1
+        let mut generator_g1_negative = amcl_utils::GENERATORG1.clone();
+        generator_g1_negative.neg();
+        ate2_evaluation(
+            &self.point.as_raw(),
+            &generator_g1_negative,
+            &msg_hash_point,
+            &pk.point.as_raw(),
+        )
     }
 
     /// Verify the Signature against a PublicKey, where the message has already been hashed.

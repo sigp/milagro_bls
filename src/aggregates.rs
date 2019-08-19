@@ -1,7 +1,7 @@
 extern crate amcl;
 extern crate rand;
 
-use super::amcl_utils::{self, ate_pairing, ate2_evaluation, hash_on_g2, BigNum, GroupG2, FP12};
+use super::amcl_utils::{self, ate2_evaluation, ate_pairing, hash_on_g2, BigNum, GroupG2, FP12};
 use super::errors::DecodeError;
 use super::g1::{G1Point, G1Wrapper};
 use super::g2::G2Point;
@@ -125,22 +125,12 @@ impl AggregateSignature {
         // Faster ate2 evaualtion checks e(S, -G1) * e(H, PK) == 1
         let mut generator_g1_negative = amcl_utils::GENERATORG1.clone();
         generator_g1_negative.neg();
-        ate2_evaluation(&sig_point.as_raw(), &generator_g1_negative, &msg_hash_point, &key_point.as_raw())
-
-        /*
-        let mut lhs = {
-            #[cfg(feature = "std")]
-            {
-                ate_pairing(sig_point.as_raw(), &amcl_utils::GENERATORG1)
-            }
-            #[cfg(not(feature = "std"))]
-            {
-                ate_pairing(sig_point.as_raw(), &amcl_utils::GroupG1::generator())
-            }
-        };
-        let mut rhs = ate_pairing(&msg_hash_point, &key_point.as_raw());
-        lhs.equals(&mut rhs)
-        */
+        ate2_evaluation(
+            &sig_point.as_raw(),
+            &generator_g1_negative,
+            &msg_hash_point,
+            &key_point.as_raw(),
+        )
     }
 
     /// Verify this AggregateSignature against multiple AggregatePublickeys with multiple Messages.
@@ -612,8 +602,7 @@ mod tests {
             aggregate_signature.add(&Signature::new(&msg_2, domain, &key_2.sk));
         }
 
-        msg_1.append(&mut msg_2);
-        assert!(aggregate_signature.verify_multiple(&[msg_1], domain, &[&apk_1, &apk_2]));
+        assert!(aggregate_signature.verify_multiple(&[msg_1, msg_2], domain, &[&apk_1, &apk_2]));
     }
 
     #[test]
