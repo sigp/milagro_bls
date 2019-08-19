@@ -1,13 +1,16 @@
 extern crate amcl;
 extern crate rand;
 
-use super::amcl_utils::{self, ate2_evaluation, ate_pairing, hash_on_g2, BigNum, GroupG2, FP12};
+use super::amcl_utils::{
+    self, ate2_evaluation, ate_pairing, hash_on_g2, BigNum, GroupG1, GroupG2, FP12,
+};
 use super::errors::DecodeError;
 use super::g1::{G1Point, G1Wrapper};
 use super::g2::G2Point;
 use super::keys::PublicKey;
 use super::signature::Signature;
 use rand::Rng;
+use BLSCurve::pair::{ate, ate2, fexp};
 
 // Messages should always be 32 bytes
 pub const MSG_LENGTH: usize = 32;
@@ -16,6 +19,11 @@ impl G1Wrapper for AggregatePublicKey {
     fn point(&self) -> &G1Point {
         &self.point
     }
+}
+
+pub struct AtePair {
+    pub g1: GroupG1,
+    pub g2: GroupG2,
 }
 
 /// Allows for the adding/combining of multiple BLS PublicKeys.
@@ -152,7 +160,7 @@ impl AggregateSignature {
         }
 
         // Aggregate each AggregatePublicKey with a Message
-        let mut rhs = FP12::new_int(1); // e(H1, PK1) * e(H2, PK2) * ... * e(Hn, PKn)
+        let mut rhs_pairs: Vec<AtePair> = vec![]; // e(H1, PK1), e(H2, PK2), ..., e(Hn, PKn)
 
         for (i, aggregate_public_key) in apks.iter().enumerate() {
             let mut key_point = aggregate_public_key.point.clone();
@@ -165,9 +173,33 @@ impl AggregateSignature {
             let mut hash_point = hash_on_g2(&msg[i], domain);
             hash_point.affine();
 
-            let pair = ate_pairing(&hash_point, key_point.as_raw());
-            rhs.mul(&pair);
+            let pair = AtePair {
+                g1: key_point.as_raw().clone(),
+                g2: hash_point,
+            };
+            rhs_pairs.push(pair);
         }
+
+        // Compress list of rhs_pairs into a single FP12
+        let mut rhs = FP12::new_int(1);
+        if rhs_pairs.len() > 1 {
+            for i in 0..(rhs_pairs.len() / 2) {
+                let pair = ate2(
+                    &rhs_pairs[2 * i].g2,
+                    &rhs_pairs[2 * i].g1,
+                    &rhs_pairs[2 * i + 1].g2,
+                    &rhs_pairs[2 * i + 1].g1,
+                );
+                rhs.mul(&pair);
+            }
+        }
+        if rhs_pairs.len() % 2 == 1 {
+            rhs.mul(&ate(
+                &rhs_pairs.last().unwrap().g2,
+                &rhs_pairs.last().unwrap().g1,
+            ));
+        }
+        rhs = fexp(&rhs);
 
         let mut lhs = {
             #[cfg(feature = "std")]
@@ -193,7 +225,7 @@ impl AggregateSignature {
         I: Iterator<Item = (G2Point, Vec<G1Point>, Vec<Vec<u8>>, u64)>,
     {
         let mut final_agg_sig = GroupG2::new(); // Aggregates AggregateSignature
-        let mut rhs = FP12::new_int(1); // e(H(1,1), P(1,1)) * e(H(1,2), P(1,2)) * ... * e(H(n,m), P(n,m))
+        let mut rhs_pairs: Vec<AtePair> = vec![]; // e(H(1,1), P(1,1)), e(H(1,2), P(1,2)), ..., e(H(n,m), P(n,m))
 
         for (g2_point, g1_points, msgs, domain) in signature_sets {
             if g1_points.len() != msgs.len() {
@@ -216,8 +248,11 @@ impl AggregateSignature {
                     public_key.affine();
 
                     // Update RHS - rhs *= e(msg, ri * PK)
-                    let pair = ate_pairing(&hash_point, &public_key);
-                    rhs.mul(&pair);
+                    let pair = AtePair {
+                        g1: public_key,
+                        g2: hash_point,
+                    };
+                    rhs_pairs.push(pair);
                 });
 
             // Multiply Signature by r and add it to final aggregate signature
@@ -225,8 +260,28 @@ impl AggregateSignature {
             temp_sig.mul(&rand); // AggregateSignature[i] * r
             final_agg_sig.add(&temp_sig);
         }
-
         final_agg_sig.affine();
+
+        // Compress list of rhs_pairs into a single FP12
+        let mut rhs = FP12::new_int(1);
+        if rhs_pairs.len() > 1 {
+            for i in 0..(rhs_pairs.len() / 2) {
+                let pair = ate2(
+                    &rhs_pairs[2 * i].g2,
+                    &rhs_pairs[2 * i].g1,
+                    &rhs_pairs[2 * i + 1].g2,
+                    &rhs_pairs[2 * i + 1].g1,
+                );
+                rhs.mul(&pair);
+            }
+        }
+        if rhs_pairs.len() % 2 == 1 {
+            rhs.mul(&ate(
+                &rhs_pairs.last().unwrap().g2,
+                &rhs_pairs.last().unwrap().g1,
+            ));
+        }
+        rhs = fexp(&rhs);
 
         // Pairing for RHS - e(S', G1)
         let mut lhs = {
