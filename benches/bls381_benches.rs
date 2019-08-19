@@ -347,9 +347,9 @@ fn key_generation(c: &mut Criterion) {
 
 criterion_group!(
     benches,
+    signing,
     aggregate_verfication_multiple_signatures,
     aggregate_verfication_multiple_messages,
-    signing,
     aggregate_verfication,
     aggregation,
     compression_signature,
