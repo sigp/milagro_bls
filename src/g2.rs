@@ -38,6 +38,10 @@ impl G2Point {
         &self.point
     }
 
+    pub fn into_raw(&self) -> GroupG2 {
+        self.point
+    }
+
     /// Instatiate the point from compressed bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, DecodeError> {
         let pt = decompress_g2(&bytes)?;

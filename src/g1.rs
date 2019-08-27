@@ -3,6 +3,10 @@ use super::errors::DecodeError;
 #[cfg(feature = "std")]
 use std::fmt;
 
+pub trait G1Wrapper {
+    fn point(&self) -> &G1Point;
+}
+
 pub struct G1Point {
     point: GroupG1,
 }
@@ -36,6 +40,10 @@ impl G1Point {
 
     pub fn as_raw(&self) -> &GroupG1 {
         &self.point
+    }
+
+    pub fn into_raw(&self) -> GroupG1 {
+        self.point
     }
 
     pub fn getx(&mut self) -> BigNum {
