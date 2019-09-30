@@ -71,9 +71,9 @@ lazy_static! {
 pub fn hash_on_g2(msg: &[u8], d: u64) -> GroupG2 {
     // Converting to BigNum requires 48 bytes, Keccak256 is only 32 bytes
     let mut x_real = vec![0 as u8; 16];
-    x_real.append(&mut hash(&[msg, &d.to_be_bytes(), &[1]].concat()));
+    x_real.append(&mut hash(&[msg, &d.to_le_bytes(), &[1]].concat()));
     let mut x_imaginary = vec![0 as u8; 16];
-    x_imaginary.append(&mut hash(&[msg, &d.to_be_bytes(), &[2]].concat()));
+    x_imaginary.append(&mut hash(&[msg, &d.to_le_bytes(), &[2]].concat()));
 
     map_to_g2(&x_real, &x_imaginary)
 }
