@@ -192,7 +192,7 @@ fn aggregate_verfication_multiple_messages(c: &mut Criterion) {
     let mut pubkeys = vec![];
     let mut agg_sig = AggregateSignature::new();
 
-    let mut msgs = vec![vec![0; 32], vec![1; 32]];
+    let msgs = vec![vec![0; 32], vec![1; 32]];
 
     let domain = 0;
 
@@ -207,13 +207,6 @@ fn aggregate_verfication_multiple_messages(c: &mut Criterion) {
         pubkeys.push(keypair.pk);
     }
 
-    let mut agg_msg = vec![];
-    agg_msg.append(&mut msgs[0].to_vec());
-    agg_msg.append(&mut msgs[1].to_vec());
-
-    assert_eq!(pubkeys.len(), n as usize);
-    assert_eq!(agg_msg.len(), 2 * 32);
-
     c.bench(
         "aggregation",
         Benchmark::new(
@@ -226,14 +219,105 @@ fn aggregate_verfication_multiple_messages(c: &mut Criterion) {
                         agg_pubs[i / (n / msgs.len())].add(&pubkeys[i]);
                     }
                     let agg_pubs_refs: Vec<&AggregatePublicKey> = agg_pubs.iter().collect();
-                    let verified =
-                        agg_sig.verify_multiple(&agg_msg[..], domain, agg_pubs_refs.as_slice());
+                    let verified = agg_sig.verify_multiple(&msgs, domain, agg_pubs_refs.as_slice());
 
                     assert!(verified);
                 })
             },
         )
         .sample_size(100),
+    );
+}
+
+fn aggregate_verfication_multiple_signatures(c: &mut Criterion) {
+    let mut rng = rand::thread_rng();
+    let n = 10;
+    let m = 3;
+    let domains: Vec<u64> = vec![1; n];
+    let mut msgs: Vec<Vec<Vec<u8>>> = vec![vec![vec![]; m]; n];
+    let mut public_keys: Vec<Vec<G1Point>> = vec![vec![]; n];
+    let mut aggregate_signatures: Vec<AggregateSignature> = vec![];
+
+    for i in 0..n {
+        let mut aggregate_signature = AggregateSignature::new();
+        for j in 0..m {
+            msgs[i][j] = vec![(j * i) as u8; 32];
+            let keypair = Keypair::random(&mut rng);
+            public_keys[i].push(keypair.pk.point);
+
+            let signature = Signature::new(&msgs[i][j], domains[i], &keypair.sk);
+            aggregate_signature.add(&signature);
+        }
+        aggregate_signatures.push(aggregate_signature);
+    }
+
+    c.bench(
+        "multiple-signatures-verification-30",
+        Benchmark::new(
+            "Verification of multiple aggregate signatures with optimizations",
+            move |b| {
+                let mega_iter = aggregate_signatures
+                    .iter()
+                    .cloned()
+                    .map(|agg_sig| agg_sig.point)
+                    .zip(public_keys.iter().cloned())
+                    .zip(msgs.iter().cloned())
+                    .zip(domains.iter().cloned())
+                    .map(|(((a, b), c), d)| (a, b, c, d));
+                b.iter(|| {
+                    assert!(AggregateSignature::verify_multiple_signatures(
+                        &mut rng,
+                        mega_iter.clone()
+                    ));
+                })
+            },
+        )
+        .sample_size(10),
+    );
+
+    let mut rng = rand::thread_rng();
+    let n = 50;
+    let m = 5;
+    let domains: Vec<u64> = vec![1; n];
+    let mut msgs: Vec<Vec<Vec<u8>>> = vec![vec![vec![]; m]; n];
+    let mut public_keys: Vec<Vec<G1Point>> = vec![vec![]; n];
+    let mut aggregate_signatures: Vec<AggregateSignature> = vec![];
+
+    for i in 0..n {
+        let mut aggregate_signature = AggregateSignature::new();
+        for j in 0..m {
+            msgs[i][j] = vec![(j * i) as u8; 32];
+            let keypair = Keypair::random(&mut rng);
+            public_keys[i].push(keypair.pk.point);
+
+            let signature = Signature::new(&msgs[i][j], domains[i], &keypair.sk);
+            aggregate_signature.add(&signature);
+        }
+        aggregate_signatures.push(aggregate_signature);
+    }
+
+    c.bench(
+        "multiple-signatures-verification-250",
+        Benchmark::new(
+            "Verification of multiple aggregate signatures with optimizations",
+            move |b| {
+                let mega_iter = aggregate_signatures
+                    .iter()
+                    .cloned()
+                    .map(|agg_sig| agg_sig.point)
+                    .zip(public_keys.iter().cloned())
+                    .zip(msgs.iter().cloned())
+                    .zip(domains.iter().cloned())
+                    .map(|(((a, b), c), d)| (a, b, c, d));
+                b.iter(|| {
+                    assert!(AggregateSignature::verify_multiple_signatures(
+                        &mut rng,
+                        mega_iter.clone()
+                    ));
+                })
+            },
+        )
+        .sample_size(10),
     );
 }
 
@@ -263,13 +347,14 @@ fn key_generation(c: &mut Criterion) {
 
 criterion_group!(
     benches,
+    signing,
+    aggregate_verfication_multiple_signatures,
+    aggregate_verfication_multiple_messages,
+    aggregate_verfication,
+    aggregation,
     compression_signature,
     compression_public_key,
     compression_public_key_bigs,
-    signing,
-    aggregation,
-    aggregate_verfication,
-    aggregate_verfication_multiple_messages,
     key_generation
 );
 criterion_main!(benches);

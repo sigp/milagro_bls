@@ -1,6 +1,6 @@
 [package]
 name = "milagro_bls"
-version = "0.9.0"
+version = "0.11.0"
 authors = ["Lovesh Harchandani <lovesh.bond@gmail.com>", "Kirk Baird <kirk@sigmaprime.io>", "Paul Hauner <paul@sigmaprime.io>"]
 description = "BLS12-381 signatures using the Apache Milagro curve library, targeting Ethereum 2.0"
 license = "Apache-2.0"
@@ -11,15 +11,15 @@ harness = false
 
 [dependencies]
 amcl = { path = "./incubator-milagro-crypto-rust", default-features = false, features = ["bls381"]}
-hex = { version = "0.3", optional = true }
-lazy_static = { version = "1.0", optional = true }
-rand = { version = "0.5", default-features = false }
-ring = "0.14.6"
-yaml-rust = { version = "0.4", optional = true }
-zeroize = "0.9"
+hex = { version = "0.4.0", optional = true }
+lazy_static = { version = "1.4.0", optional = true }
+rand = { version = "0.7.2", default-features = false }
+ring = "0.16.9"
+yaml-rust = { version = "0.4.3", optional = true }
+zeroize = "1.0.0"
 
 # This cannot be specified as dev-dependencies. Otherwise a cargo bug will always resolve `rand` with `std` feature, which breaks `no_std` builds.
-criterion = { version = "0.2", optional = true }
+criterion = { version = "0.3.0", optional = true }
 
 [features]
 default = ["std"]

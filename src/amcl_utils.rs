@@ -13,7 +13,7 @@ use BLSCurve::ecp::ECP;
 use BLSCurve::ecp2::ECP2;
 use BLSCurve::fp12::FP12 as bls381_FP12;
 use BLSCurve::fp2::FP2 as bls381_FP2;
-use BLSCurve::pair::{ate, fexp};
+use BLSCurve::pair::{ate, ate2, fexp};
 use BLSCurve::rom;
 
 pub type BigNum = BIG;
@@ -71,9 +71,9 @@ lazy_static! {
 pub fn hash_on_g2(msg: &[u8], d: u64) -> GroupG2 {
     // Converting to BigNum requires 48 bytes, Keccak256 is only 32 bytes
     let mut x_real = vec![0 as u8; 16];
-    x_real.append(&mut hash(&[msg, &d.to_be_bytes(), &[1]].concat()));
+    x_real.append(&mut hash(&[msg, &d.to_le_bytes(), &[1]].concat()));
     let mut x_imaginary = vec![0 as u8; 16];
-    x_imaginary.append(&mut hash(&[msg, &d.to_be_bytes(), &[2]].concat()));
+    x_imaginary.append(&mut hash(&[msg, &d.to_le_bytes(), &[2]].concat()));
 
     map_to_g2(&x_real, &x_imaginary)
 }
@@ -162,6 +162,13 @@ pub fn hash(input: &[u8]) -> Vec<u8> {
 pub fn ate_pairing(point_g2: &GroupG2, point_g1: &GroupG1) -> FP12 {
     let e = ate(&point_g2, &point_g1);
     fexp(&e)
+}
+
+// Evaluation of e(A, B) * e(C, D) == 1
+pub fn ate2_evaluation(a: &GroupG2, b: &GroupG1, c: &GroupG2, d: &GroupG1) -> bool {
+    let mut e = ate2(&a, &b, &c, &d);
+    e = fexp(&e);
+    FP12::new_int(1).equals(&mut e)
 }
 
 // Take a GroupG1 point (x, y) and compress it to a 384 bit array.
