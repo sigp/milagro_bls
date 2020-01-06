@@ -2,7 +2,7 @@ language: rust
 script:
   - cargo build --verbose --all
   - cargo test --verbose --all
-  - cargo fmt --all -- --check
+  - cargo fmt -- --check
   - |
     if [[ "$TRAVIS_RUST_VERSION" == nightly* ]]; then
       cargo build --no-default-features
