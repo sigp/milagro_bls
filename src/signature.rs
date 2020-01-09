@@ -42,7 +42,7 @@ impl Signature {
         msg_hash_point.affine();
 
         // Faster ate2 evaualtion checks e(S, -G1) * e(H, PK) == 1
-        let mut generator_g1_negative = amcl_utils::GENERATORG1.clone();
+        let mut generator_g1_negative = amcl_utils::GroupG1::generator();
         generator_g1_negative.neg();
         ate2_evaluation(
             &self.point.as_raw(),

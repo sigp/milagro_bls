@@ -1,7 +1,6 @@
 extern crate amcl;
 extern crate rand;
 
-use amcl::bls381::pair;
 use super::amcl_utils::{
     self, ate2_evaluation, ate_pairing, hash_on_g2, BigNum, GroupG1, GroupG2, FP12,
 };
@@ -10,6 +9,7 @@ use super::g1::{G1Point, G1Wrapper};
 use super::g2::G2Point;
 use super::keys::PublicKey;
 use super::signature::Signature;
+use amcl::bls381::pair;
 use rand::Rng;
 use BLSCurve::pair::{ate, ate2, fexp};
 
@@ -132,7 +132,7 @@ impl AggregateSignature {
         msg_hash_point.affine();
 
         // Faster ate2 evaualtion checks e(S, -G1) * e(H, PK) == 1
-        let mut generator_g1_negative = amcl_utils::GENERATORG1.clone();
+        let mut generator_g1_negative = amcl_utils::GroupG1::generator();
         generator_g1_negative.neg();
         ate2_evaluation(
             &sig_point.as_raw(),
@@ -199,11 +199,10 @@ impl AggregateSignature {
         I: Iterator<Item = (G2Point, Vec<G1Point>, Vec<Vec<u8>>, u64)>,
     {
         let mut final_agg_sig = GroupG2::new(); // Aggregates AggregateSignature
-        //let mut rhs_pairs: Vec<AtePair> = vec![]; // e(H(1,1), P(1,1)), e(H(1,2), P(1,2)), ..., e(H(n,m), P(n,m))
+                                                //let mut rhs_pairs: Vec<AtePair> = vec![]; // e(H(1,1), P(1,1)), e(H(1,2), P(1,2)), ..., e(H(n,m), P(n,m))
 
         // Stores current value of pairings
         let mut r = pair::initmp();
-
 
         for (g2_point, g1_points, msgs, domain) in signature_sets {
             if g1_points.len() != msgs.len() {
