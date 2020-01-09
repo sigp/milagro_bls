@@ -199,7 +199,6 @@ impl AggregateSignature {
         I: Iterator<Item = (G2Point, Vec<G1Point>, Vec<Vec<u8>>, u64)>,
     {
         let mut final_agg_sig = GroupG2::new(); // Aggregates AggregateSignature
-                                                //let mut rhs_pairs: Vec<AtePair> = vec![]; // e(H(1,1), P(1,1)), e(H(1,2), P(1,2)), ..., e(H(n,m), P(n,m))
 
         // Stores current value of pairings
         let mut r = pair::initmp();
