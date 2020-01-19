@@ -15,7 +15,7 @@ impl Signature {
     /// Instantiate a new Signature from a message and a SecretKey.
     pub fn new(msg: &[u8], d: u64, sk: &SecretKey) -> Self {
         let hash_point = hash_on_g2(msg, d);
-        let mut sig = hash_point.mul_secret_key(&sk.x);
+        let mut sig = hash_point.mul(&sk.x);
         sig.affine();
         Self {
             point: G2Point::from_raw(sig),
@@ -26,7 +26,7 @@ impl Signature {
     /// been hashed.
     pub fn new_hashed(msg_hash_real: &[u8], msg_hash_imaginary: &[u8], sk: &SecretKey) -> Self {
         let hash_point = map_to_g2(msg_hash_real, msg_hash_imaginary);
-        let mut sig = hash_point.mul_secret_key(&sk.x);
+        let mut sig = hash_point.mul(&sk.x);
         sig.affine();
         Self {
             point: G2Point::from_raw(sig),
@@ -42,7 +42,7 @@ impl Signature {
         msg_hash_point.affine();
 
         // Faster ate2 evaualtion checks e(S, -G1) * e(H, PK) == 1
-        let mut generator_g1_negative = amcl_utils::GENERATORG1.clone();
+        let mut generator_g1_negative = amcl_utils::GroupG1::generator();
         generator_g1_negative.neg();
         ate2_evaluation(
             &self.point.as_raw(),

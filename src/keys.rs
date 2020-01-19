@@ -87,11 +87,11 @@ impl PublicKey {
             point: {
                 #[cfg(feature = "std")]
                 {
-                    G1Point::from_raw(amcl_utils::GENERATORG1.mul_secret_key(&sk.x))
+                    G1Point::from_raw(amcl_utils::GENERATORG1.mul(&sk.x))
                 }
                 #[cfg(not(feature = "std"))]
                 {
-                    G1Point::from_raw(amcl_utils::GroupG1::generator().mul_secret_key(&sk.x))
+                    G1Point::from_raw(amcl_utils::GroupG1::generator().mul(&sk.x))
                 }
             },
         }

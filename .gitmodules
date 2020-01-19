@@ -1,0 +1,4 @@
+[submodule "incubator-milagro-crypto-rust"]
+	path = incubator-milagro-crypto-rust
+	url = https://github.com/sigp/incubator-milagro-crypto-rust
+	branch = master
