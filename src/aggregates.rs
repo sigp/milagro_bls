@@ -70,8 +70,7 @@ impl AggregatePublicKey {
 
     /// Export the AggregatePublicKey to compressed bytes.
     pub fn as_bytes(&self) -> Vec<u8> {
-        let mut clone = self.point.clone();
-        clone.as_bytes()
+        self.point.as_bytes()
     }
 }
 
@@ -240,8 +239,7 @@ impl AggregateSignature {
 
     /// Export (serialize) the AggregateSignature to bytes.
     pub fn as_bytes(&self) -> Vec<u8> {
-        let mut clone = self.point.clone();
-        clone.as_bytes()
+        self.point.as_bytes()
     }
 }
 

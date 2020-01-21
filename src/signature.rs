@@ -49,8 +49,7 @@ impl Signature {
 
     /// Compress the Signature as bytes.
     pub fn as_bytes(&self) -> Vec<u8> {
-        let mut clone = self.point.clone();
-        clone.as_bytes()
+        self.point.as_bytes()
     }
 }
 

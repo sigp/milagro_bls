@@ -7,8 +7,8 @@ use super::errors::DecodeError;
 use BLSCurve::bls381::hash_to_curve_g2;
 use BLSCurve::ecp::ECP;
 use BLSCurve::ecp2::ECP2;
-
 use BLSCurve::pair::{ate2, fexp};
+use BLSCurve::rom::MODULUS;
 
 pub use BLSCurve::big::{Big, MODBYTES};
 pub use BLSCurve::fp12::FP12;
@@ -129,10 +129,16 @@ pub fn decompress_g1(g1_bytes: &[u8]) -> Result<GroupG1, DecodeError> {
     // Zero remaining flags so it can be converted to 381 bit Big
     let mut g1_bytes = g1_bytes.to_owned();
     g1_bytes[0] %= u8::pow(2, 5);
-    let x_big = Big::frombytes(&g1_bytes);
+    let x = Big::frombytes(&g1_bytes);
+
+    // Confirm elements are less than field modulus
+    let m = Big::new_ints(&MODULUS);
+    if x > m {
+        return Err(DecodeError::BadPoint);
+    }
 
     // Convert to GroupG1 point using big
-    let point = GroupG1::new_big(&x_big);
+    let point = GroupG1::new_big(&x);
     if point.is_infinity() {
         return Err(DecodeError::BadPoint);
     }
@@ -226,6 +232,12 @@ pub fn decompress_g2(g2_bytes: &[u8]) -> Result<GroupG2, DecodeError> {
     // Convert from array to FP2
     let x_imaginary = Big::frombytes(&g2_bytes[0..MODBYTES]);
     let x_real = Big::frombytes(&g2_bytes[MODBYTES..]);
+
+    // Confirm elements are less than field modulus
+    let m = Big::new_ints(&MODULUS);
+    if x_imaginary > m || x_real > m {
+        return Err(DecodeError::BadPoint);
+    }
     let x = FP2::new_bigs(&x_real, &x_imaginary);
 
     // Convert to GroupG1 point using big and sign
@@ -450,9 +462,12 @@ mod tests {
     fn fuzz_input() {
         let data = hex::decode("b9b90ab9b9b9b9b90ab9b9b90a00000a0a000000002db9b9b9b9b90ab9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b90ab9b9b90a0a0a0a0a0a0a0a000a0a0a00000a000a000a0a000a0a0a000a00000a0000000000000ab9b9b90a0a0a0a0a0a0000").unwrap();
 
-        if let Ok(mut point) = decompress_g2(&data) {
+        let data_a = hex::decode("b9b90ab9b9b9b9b90ab9b9b90a00000a0a000000002db9b9b9b9b90ab9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b90ab9b9").unwrap();
+        let data_b = hex::decode("b90a0a0a0a0a0a0a0a000a0a0a00000a000a000a0a000a0a0a000a00000a0000000000000ab9b9b90a0a0a0a0a0a0000").unwrap();
+
+        if let Ok(point) = decompress_g2(&data) {
             let compressed_data = compress_g2(&point);
-            if let Ok(mut point2) = decompress_g2(&compressed_data) {
+            if let Ok(point2) = decompress_g2(&compressed_data) {
                 assert_eq!(point, point2);
                 let compressed_data2 = compress_g2(&point2);
                 assert_eq!(compressed_data, compressed_data2);
