@@ -2,6 +2,5 @@
 pub enum DecodeError {
     BadPoint,
     IncorrectSize,
-    Infinity,
-    InvalidCFlag,
+    InvalidCompressionFlag,
 }

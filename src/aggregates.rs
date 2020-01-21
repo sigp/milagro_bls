@@ -1,7 +1,7 @@
 extern crate amcl;
 extern crate rand;
 
-use super::amcl_utils::{self, ate2_evaluation, hash_on_g2, BigNum, GroupG1, GroupG2};
+use super::amcl_utils::{self, ate2_evaluation, hash_on_g2, Big, GroupG1, GroupG2};
 use super::errors::DecodeError;
 use super::g1::{G1Point, G1Wrapper};
 use super::g2::G2Point;
@@ -198,7 +198,7 @@ impl AggregateSignature {
             let mut rand = [0 as u8; 8]; // bytes
             rng.fill(&mut rand);
             let rand = i64::from_be_bytes(rand).abs(); // i64 > 0
-            let rand = BigNum::new_int(rand as isize); // BigNum
+            let rand = Big::new_int(rand as isize); // Big
 
             msgs.into_iter()
                 .zip(g1_points.into_iter())

@@ -49,8 +49,8 @@ impl G2Point {
     }
 
     /// Export (serialize) the point to compressed bytes.
-    pub fn as_bytes(&mut self) -> Vec<u8> {
-        compress_g2(&mut self.point)
+    pub fn as_bytes(&self) -> Vec<u8> {
+        compress_g2(&self.point)
     }
 }
 

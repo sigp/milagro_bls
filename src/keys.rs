@@ -3,7 +3,7 @@ extern crate rand;
 extern crate zeroize;
 
 use self::zeroize::Zeroize;
-use super::amcl_utils::{self, BigNum, GroupG1, CURVE_ORDER, MOD_BYTE_SIZE};
+use super::amcl_utils::{self, Big, GroupG1, CURVE_ORDER, MODBYTES};
 use super::errors::DecodeError;
 use super::g1::{G1Point, G1Wrapper};
 use super::rng::get_seeded_rng;
@@ -14,31 +14,31 @@ use std::fmt;
 #[derive(Clone)]
 /// A BLS secret key.
 pub struct SecretKey {
-    pub x: BigNum,
+    pub x: Big,
 }
 
 impl SecretKey {
     /// Generate a new SecretKey using an Rng to seed the `amcl::rand::RAND` PRNG.
     pub fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
         let mut r = get_seeded_rng(rng, 256);
-        let x = BigNum::randomnum(&BigNum::new_ints(&CURVE_ORDER), &mut r);
+        let x = Big::randomnum(&Big::new_ints(&CURVE_ORDER), &mut r);
         SecretKey { x }
     }
 
     /// Instantiate a SecretKey from existing bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<SecretKey, DecodeError> {
-        if bytes.len() != MOD_BYTE_SIZE {
+        if bytes.len() != MODBYTES {
             return Err(DecodeError::IncorrectSize);
         }
         Ok(SecretKey {
-            x: BigNum::frombytes(bytes),
+            x: Big::frombytes(bytes),
         })
     }
 
     /// Export the SecretKey to bytes.
     pub fn as_bytes(&self) -> Vec<u8> {
-        let mut temp = BigNum::new_copy(&self.x);
-        let mut bytes: [u8; MOD_BYTE_SIZE] = [0; MOD_BYTE_SIZE];
+        let mut temp = Big::new_copy(&self.x);
+        let mut bytes: [u8; MODBYTES] = [0; MODBYTES];
         temp.tobytes(&mut bytes);
         bytes.to_vec()
     }
@@ -47,7 +47,7 @@ impl SecretKey {
 #[cfg(feature = "std")]
 impl fmt::Debug for SecretKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut temp = BigNum::new();
+        let mut temp = Big::new();
         temp.copy(&self.x);
         write!(f, "{}", temp.tostring())
     }
@@ -149,8 +149,8 @@ impl PublicKey {
             return Ok(PublicKey::new_from_raw(&GroupG1::new()));
         }
 
-        let x_big = BigNum::frombytes(&bytes[0..48]);
-        let y_big = BigNum::frombytes(&bytes[48..]);
+        let x_big = Big::frombytes(&bytes[0..48]);
+        let y_big = Big::frombytes(&bytes[48..]);
         let point = GroupG1::new_bigs(&x_big, &y_big);
 
         if point.is_infinity() {

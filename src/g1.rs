@@ -1,4 +1,4 @@
-use super::amcl_utils::{compress_g1, decompress_g1, BigNum, GroupG1};
+use super::amcl_utils::{compress_g1, decompress_g1, Big, GroupG1};
 use super::errors::DecodeError;
 #[cfg(feature = "std")]
 use std::fmt;
@@ -46,11 +46,11 @@ impl G1Point {
         self.point
     }
 
-    pub fn getx(&mut self) -> BigNum {
+    pub fn getx(&mut self) -> Big {
         self.point.getx()
     }
 
-    pub fn gety(&mut self) -> BigNum {
+    pub fn gety(&mut self) -> Big {
         self.point.gety()
     }
 
@@ -61,8 +61,8 @@ impl G1Point {
     }
 
     /// Export (serialize) the G1 point to compressed bytes.
-    pub fn as_bytes(&mut self) -> Vec<u8> {
-        compress_g1(&mut self.point)
+    pub fn as_bytes(&self) -> Vec<u8> {
+        compress_g1(&self.point)
     }
 }
 
