@@ -234,7 +234,6 @@ pub fn decompress_g2(g2_bytes: &[u8]) -> Result<GroupG2, DecodeError> {
         return Err(DecodeError::BadPoint);
     }
 
-    // Confirm a_flag matches given flag
     // Confirm y value
     let mut point_neg = point.clone();
     point_neg.neg();
@@ -444,6 +443,21 @@ mod tests {
             a.append(&mut b);
 
             assert_eq!(a, compress_g2(&mut result));
+        }
+    }
+
+    #[test]
+    fn fuzz_input() {
+        let data = hex::decode("b9b90ab9b9b9b9b90ab9b9b90a00000a0a000000002db9b9b9b9b90ab9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b9b90ab9b9b90a0a0a0a0a0a0a0a000a0a0a00000a000a000a0a000a0a0a000a00000a0000000000000ab9b9b90a0a0a0a0a0a0000").unwrap();
+
+        if let Ok(mut point) = decompress_g2(&data) {
+            let compressed_data = compress_g2(&point);
+            if let Ok(mut point2) = decompress_g2(&compressed_data) {
+                assert_eq!(point, point2);
+                let compressed_data2 = compress_g2(&point2);
+                assert_eq!(compressed_data, compressed_data2);
+            }
+            assert_eq!(data, compressed_data);
         }
     }
 }

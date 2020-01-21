@@ -1,0 +1,24 @@
+
+[package]
+name = "milagro_bls-fuzz"
+version = "0.0.0"
+authors = ["Automatically generated"]
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.2"
+
+[dependencies.milagro_bls]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "fuzz_serde_g2"
+path = "fuzz_targets/fuzz_serde_g2.rs"
