@@ -67,13 +67,13 @@ lazy_static! {
     pub static ref GENERATORG2: GroupG2 = GroupG2::generator();
 }
 
-// Take given message and domain and convert it to GroupG2 point
-pub fn hash_on_g2(msg: &[u8], d: u64) -> GroupG2 {
+// Take given message convert it to GroupG2 point
+pub fn hash_on_g2(msg: &[u8]) -> GroupG2 {
     // Converting to BigNum requires 48 bytes, Keccak256 is only 32 bytes
     let mut x_real = vec![0 as u8; 16];
-    x_real.append(&mut hash(&[msg, &d.to_le_bytes(), &[1]].concat()));
+    x_real.append(&mut hash(&[msg, &[1]].concat()));
     let mut x_imaginary = vec![0 as u8; 16];
-    x_imaginary.append(&mut hash(&[msg, &d.to_le_bytes(), &[2]].concat()));
+    x_imaginary.append(&mut hash(&[msg, &[2]].concat()));
 
     map_to_g2(&x_real, &x_imaginary)
 }
@@ -168,7 +168,7 @@ pub fn ate_pairing(point_g2: &GroupG2, point_g1: &GroupG1) -> FP12 {
 pub fn ate2_evaluation(a: &GroupG2, b: &GroupG1, c: &GroupG2, d: &GroupG1) -> bool {
     let mut e = ate2(&a, &b, &c, &d);
     e = fexp(&e);
-    FP12::new_int(1).equals(&mut e)
+    FP12::new_int(1).equals(&e)
 }
 
 // Take a GroupG1 point (x, y) and compress it to a 384 bit array.
@@ -398,7 +398,7 @@ mod tests {
     fn test_to_from_infinity_g1() {
         let mut point = GroupG1::new();
         let compressed = compress_g1(&mut point);
-        let mut round_trip_point = decompress_g1(&compressed).unwrap();
+        let round_trip_point = decompress_g1(&compressed).unwrap();
         assert_eq!(point.tostring(), round_trip_point.tostring());
     }
 
@@ -406,7 +406,7 @@ mod tests {
     fn test_to_from_infinity_g2() {
         let mut point = GroupG2::new();
         let compressed = compress_g2(&mut point);
-        let mut round_trip_point = decompress_g2(&compressed).unwrap();
+        let round_trip_point = decompress_g2(&compressed).unwrap();
         assert_eq!(point.tostring(), round_trip_point.tostring());
     }
 
@@ -443,7 +443,7 @@ mod tests {
     // Test vectors found at https://github.com/ethereum/eth2.0-tests/blob/master/bls/test_bls.yml
     #[test]
     #[allow(non_snake_case)]
-    #[should_panic]
+    #[ignore]
     fn case01_message_hash_G2_uncompressed() {
         // This test fails as the intermediate (x,y,z) variables do not match test vector
         // Likely caused by calling affine() during an intermediate step which converts (x, y, z) -> (x, y)
@@ -471,7 +471,7 @@ mod tests {
             // Convert domain from indexed yaml to u64
             let domain = input["domain"].as_str().unwrap();
             let domain = domain.trim_start_matches("0x");
-            let domain = u64::from_str_radix(domain, 16).unwrap();
+            let _domain = u64::from_str_radix(domain, 16).unwrap();
 
             // Convert msg from indexed yaml to bytes (Vec<u8>)
             let msg = input["message"].as_str().unwrap();
@@ -479,7 +479,7 @@ mod tests {
             let msg = hex::decode(msg).unwrap();
 
             // Function results returns GroupG2 point
-            let mut result = hash_on_g2(&msg, domain);
+            let result = hash_on_g2(&msg);
 
             // Compare against given output
             let output = test_case["output"].clone().into_vec().unwrap();
@@ -514,8 +514,8 @@ mod tests {
 
     #[test]
     #[allow(non_snake_case)]
-    // Test vectors use Keccak whilst this implementation uses SHA2.
-    #[should_panic]
+    #[ignore] //TODO: update test_vectors
+              // Test vectors use Keccak whilst this implementation uses SHA2.
     fn case02_message_hash_G2_compressed() {
         // Run tests from test_bls.yml
         let mut file = {
@@ -539,7 +539,7 @@ mod tests {
             // Convert domain from indexed yaml to u64
             let domain = input["domain"].as_str().unwrap();
             let domain = domain.trim_start_matches("0x");
-            let domain = u64::from_str_radix(domain, 16).unwrap();
+            let _domain = u64::from_str_radix(domain, 16).unwrap();
 
             // Convert msg from indexed yaml to bytes (Vec<u8>)
             let msg = input["message"].as_str().unwrap();
@@ -547,7 +547,7 @@ mod tests {
             let msg = hex::decode(msg).unwrap();
 
             // Function results returns GroupG2 point, then compress
-            let mut result = hash_on_g2(&msg, domain);
+            let mut result = hash_on_g2(&msg);
             result.affine();
 
             // Convert ouput to compressed bytes

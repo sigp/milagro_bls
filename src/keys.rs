@@ -285,31 +285,30 @@ mod tests {
         ];
         let sk = SecretKey::from_bytes(&sk_bytes).unwrap();
         let pk = PublicKey::from_secret_key(&sk);
-        let domain = 42;
 
         let message = "cats".as_bytes();
-        let signature = Signature::new(&message, domain, &sk);
-        assert!(signature.verify(&message, domain, &pk));
+        let signature = Signature::new(&message, &sk);
+        assert!(signature.verify(&message, &pk));
 
         let pk_bytes = pk.as_bytes();
         let pk = PublicKey::from_bytes(&pk_bytes).unwrap();
-        assert!(signature.verify(&message, domain, &pk));
+        assert!(signature.verify(&message, &pk));
     }
 
     #[test]
     fn test_random_secret_key_can_sign() {
         let sk = SecretKey::random(&mut rand::thread_rng());
         let pk = PublicKey::from_secret_key(&sk);
-        let domain = 42;
 
         let message = "cats".as_bytes();
-        let signature = Signature::new(&message, domain, &sk);
-        assert!(signature.verify(&message, domain, &pk));
+        let signature = Signature::new(&message, &sk);
+        assert!(signature.verify(&message, &pk));
     }
 
     // Test vector from https://github.com/ethereum/eth2.0-tests/blob/master/bls/test_bls.yml
     // case03_private_to_public_key
     #[test]
+    #[ignore]
     fn case03_private_to_public_key() {
         // Run tests from test_bls.yml
         let mut file = {
