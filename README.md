@@ -17,7 +17,7 @@ There has been no public audit or scrutiny placed upon this crate. If you're a
 cryptographer I would love to have your input.
 
 ## BLS Standard
-Progress towards the [BLS Standard](https://github.com/cfrg/draft-irtf-cfrg-bls-signature/) is being made on [this branch](https://github.com/sigp/milagro_bls/tree/experimental)
+Progress towards the [BLS Standard](https://github.com/cfrg/draft-irtf-cfrg-bls-signature/) is being made on [this branch](https://github.com/sigp/milagro_bls/tree/eth2.0-v0.10)
 
 ## Usage
 
