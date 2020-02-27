@@ -3,4 +3,5 @@ pub enum DecodeError {
     BadPoint,
     IncorrectSize,
     InvalidCompressionFlag,
+    InvalidSecretKeyRange,
 }
