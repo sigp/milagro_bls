@@ -57,12 +57,9 @@ impl Signature {
 mod tests {
     extern crate hex;
     extern crate rand;
-    extern crate yaml_rust;
 
-    use self::yaml_rust::yaml;
     use super::super::keys::Keypair;
     use super::*;
-    use std::{fs::File, io::prelude::*, path::PathBuf};
 
     #[test]
     fn basic_sign_verify() {

@@ -49,7 +49,7 @@ impl SecretKey {
 
     /// Export the SecretKey to bytes.
     pub fn as_bytes(&self) -> Vec<u8> {
-        let mut temp = Big::new_copy(&self.x);
+        let temp = Big::new_copy(&self.x);
         let mut bytes: [u8; MODBYTES] = [0; MODBYTES];
         temp.tobytes(&mut bytes);
         bytes.to_vec()
@@ -197,13 +197,9 @@ impl Keypair {
 mod tests {
     extern crate hex;
     extern crate rand;
-    extern crate yaml_rust;
 
-    use self::yaml_rust::yaml;
-    use super::super::amcl_utils::compress_g1;
     use super::super::signature::Signature;
     use super::*;
-    use std::{fs::File, io::prelude::*, path::PathBuf};
 
     #[test]
     fn test_secret_key_serialization_isomorphism() {

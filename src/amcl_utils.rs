@@ -259,11 +259,7 @@ pub fn decompress_g2(g2_bytes: &[u8]) -> Result<GroupG2, DecodeError> {
 
 #[cfg(test)]
 mod tests {
-    extern crate yaml_rust;
-
-    use self::yaml_rust::yaml;
     use super::*;
-    use std::{fs::File, io::prelude::*, path::PathBuf};
 
     #[test]
     fn compression_decompression_g1_round_trip() {

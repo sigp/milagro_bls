@@ -253,12 +253,9 @@ impl Default for AggregateSignature {
 mod tests {
     extern crate hex;
     extern crate rand;
-    extern crate yaml_rust;
 
-    use self::yaml_rust::yaml;
     use super::super::keys::{Keypair, SecretKey};
     use super::*;
-    use std::{fs::File, io::prelude::*, path::PathBuf};
 
     #[test]
     fn test_aggregate_serialization() {
