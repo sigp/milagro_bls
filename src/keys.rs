@@ -49,7 +49,7 @@ impl SecretKey {
 
     /// Export the SecretKey to bytes.
     pub fn as_bytes(&self) -> Vec<u8> {
-        let temp = Big::new_copy(&self.x);
+        let mut temp = Big::new_copy(&self.x);
         let mut bytes: [u8; MODBYTES] = [0; MODBYTES];
         temp.tobytes(&mut bytes);
         bytes.to_vec()
