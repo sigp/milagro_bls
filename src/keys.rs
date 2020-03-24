@@ -11,8 +11,8 @@ use rand::Rng;
 #[cfg(feature = "std")]
 use std::fmt;
 
-#[derive(Clone)]
 /// A BLS secret key.
+#[derive(Clone)]
 pub struct SecretKey {
     x: Big,
 }
@@ -38,9 +38,9 @@ impl SecretKey {
             bytes = input.to_vec();
         }
 
-        // Ensure secret key is in the range [1, r-1].
+        // Ensure secret key is in the range [0, r-1].
         let sk = Big::frombytes(&bytes);
-        if sk.iszilch() || sk >= Big::new_ints(&CURVE_ORDER) {
+        if sk >= Big::new_ints(&CURVE_ORDER) {
             return Err(DecodeError::InvalidSecretKeyRange);
         }
 
@@ -252,19 +252,19 @@ mod tests {
 
     #[test]
     fn test_public_key_uncompressed_serialization_incorrect_size() {
-        let bytes = vec![0; 1];
+        let bytes = vec![1; 1];
         assert_eq!(
             PublicKey::from_uncompressed_bytes(&bytes),
             Err(DecodeError::IncorrectSize)
         );
 
-        let bytes = vec![0; 95];
+        let bytes = vec![1; 95];
         assert_eq!(
             PublicKey::from_uncompressed_bytes(&bytes),
             Err(DecodeError::IncorrectSize)
         );
 
-        let bytes = vec![0; 97];
+        let bytes = vec![1; 97];
         assert_eq!(
             PublicKey::from_uncompressed_bytes(&bytes),
             Err(DecodeError::IncorrectSize)
@@ -294,23 +294,14 @@ mod tests {
         let bytes = vec![1; 1];
         assert!(SecretKey::from_bytes(&bytes).is_ok());
 
-        let bytes = vec![0; 49];
+        let bytes = vec![1; 49];
         assert_eq!(
             SecretKey::from_bytes(&bytes),
             Err(DecodeError::IncorrectSize)
         );
 
         let bytes = vec![0; 48];
-        assert_eq!(
-            SecretKey::from_bytes(&bytes),
-            Err(DecodeError::InvalidSecretKeyRange)
-        );
-
-        let bytes = vec![];
-        assert_eq!(
-            SecretKey::from_bytes(&bytes),
-            Err(DecodeError::InvalidSecretKeyRange)
-        );
+        assert!(SecretKey::from_bytes(&bytes).is_ok());
 
         let bytes = vec![255; 48];
         assert_eq!(
