@@ -2,7 +2,8 @@ extern crate amcl;
 extern crate rand;
 
 use super::amcl_utils::{
-    self, ate2_evaluation, hash_to_curve_g2, subgroup_check_g2, Big, GroupG1, GroupG2,
+    self, ate2_evaluation, hash_to_curve_g2, subgroup_check_g1, subgroup_check_g2, Big, GroupG1,
+    GroupG2,
 };
 use super::errors::DecodeError;
 use super::g1::G1Point;
@@ -105,6 +106,69 @@ impl AggregateSignature {
         self.point.add(&aggregate_signature.point);
     }
 
+    /// AggregateVerify
+    ///
+    /// Verifies an AggregateSignature against a list of Messages and PublicKeys
+    /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.1.1
+    pub fn aggregate_verify(&self, msgs: &[&[u8]], public_keys: &[&PublicKey]) -> bool {
+        // Require same number of messages as public keys
+        if msgs.len() != public_keys.len() {
+            return false;
+        }
+
+        // Verify messages are unique
+        for (i, msg1) in msgs.iter().enumerate() {
+            for (j, msg2) in msgs.iter().enumerate() {
+                if i == j {
+                    continue;
+                }
+                if msg1 == msg2 {
+                    return false;
+                }
+            }
+        }
+
+        // Subgroup check for signature
+        if !subgroup_check_g2(self.point.as_raw()) {
+            return false;
+        }
+
+        // Stores current value of pairings
+        let mut pairing = pair::initmp();
+
+        for (i, pk) in public_keys.iter().enumerate() {
+            // Subgroup check for public key
+            if !subgroup_check_g1(pk.point.as_raw()) {
+                return false;
+            }
+
+            // Hash message to curve
+            let mut msg_hash = hash_to_curve_g2(msgs[i]);
+
+            // Points must be affine for pairing
+            let mut pk_affine = pk.point.as_raw().clone();
+            pk_affine.affine();
+            msg_hash.affine();
+
+            // pairing *= e(H(msg[i], pk[i]))
+            pair::another(&mut pairing, &msg_hash, &pk_affine);
+        }
+
+        // Affine for signature
+        let mut sig_point = self.point.as_raw().clone();
+        let mut generator_g1_negative = amcl_utils::GroupG1::generator();
+        sig_point.affine();
+        generator_g1_negative.neg(); // already affine
+
+        // pairing *= e(signature, G1)
+        pair::another(&mut pairing, &sig_point, &generator_g1_negative);
+
+        // Complete pairing and verify output is 1.
+        let mut v = pair::miller(&pairing);
+        v = pair::fexp(&v);
+        v.isunity()
+    }
+
     /// FastAggregateVerify
     ///
     /// Verifies an AggregateSignature against a list of PublicKeys
@@ -118,24 +182,21 @@ impl AggregateSignature {
         // Aggregate PublicKeys
         let aggregate_public_key = AggregatePublicKey::from_public_keys(public_keys);
 
+        // Hash message to curve
+        let mut msg_hash = hash_to_curve_g2(msg);
+
         // Points must be affine for pairing
         let mut sig_point = self.point.as_raw().clone();
         let mut key_point = aggregate_public_key.point.as_raw().clone();
-        let mut msg_hash_point = hash_to_curve_g2(msg);
         sig_point.affine();
         key_point.affine();
-        msg_hash_point.affine();
+        msg_hash.affine();
 
         let mut generator_g1_negative = amcl_utils::GroupG1::generator();
-        generator_g1_negative.neg();
+        generator_g1_negative.neg(); // already affine
 
         // Faster ate2 evaualtion checks e(S, -G1) * e(H, PK) == 1
-        ate2_evaluation(
-            &sig_point,
-            &generator_g1_negative,
-            &msg_hash_point,
-            &key_point,
-        )
+        ate2_evaluation(&sig_point, &generator_g1_negative, &msg_hash, &key_point)
     }
 
     /// FastAggregateVerify - pre-aggregated PublicKeys
@@ -153,20 +214,24 @@ impl AggregateSignature {
             return false;
         }
 
+        // Hash message to curve
+        let mut msg_hash = hash_to_curve_g2(msg);
+
+        // Points must be affine for pairing
         let mut sig_point = self.point.clone();
         let mut key_point = aggregate_public_key.point.clone();
         sig_point.affine();
         key_point.affine();
-        let mut msg_hash_point = hash_to_curve_g2(msg);
-        msg_hash_point.affine();
+        msg_hash.affine();
+
+        let mut generator_g1_negative = amcl_utils::GroupG1::generator();
+        generator_g1_negative.neg(); // already affine
 
         // Faster ate2 evaualtion checks e(S, -G1) * e(H, PK) == 1
-        let mut generator_g1_negative = amcl_utils::GroupG1::generator();
-        generator_g1_negative.neg();
         ate2_evaluation(
             &sig_point.as_raw(),
             &generator_g1_negative,
-            &msg_hash_point,
+            &msg_hash,
             &key_point.as_raw(),
         )
     }
@@ -200,7 +265,7 @@ impl AggregateSignature {
             let rand = Big::new_int(rand as isize);
 
             // Hash message to curve - H(message[i])
-            let mut hash_point = hash_to_curve_g2(message);
+            let mut msg_hash = hash_to_curve_g2(message);
 
             // Aggregate PublicKeys - Apk[i]
             let mut aggregate_public_key = AggregatePublicKey::from_public_keys(public_keys)
@@ -211,11 +276,11 @@ impl AggregateSignature {
             aggregate_public_key = aggregate_public_key.mul(&rand);
 
             // Points must be affine before pairings
-            hash_point.affine();
+            msg_hash.affine();
             aggregate_public_key.affine();
 
             // Update current pairings: *= e(H(message[i]), rand[i] * Apk[i])
-            pair::another(&mut pairing, &hash_point, &aggregate_public_key);
+            pair::another(&mut pairing, &msg_hash, &aggregate_public_key);
 
             // S' += rand[i] * AggregateSignature[i]
             final_agg_sig.add(&aggregate_signature.point.as_raw().mul(&rand));
@@ -671,5 +736,189 @@ mod tests {
         let valid = AggregateSignature::verify_multiple_aggregate_signatures(&mut rng, mega_iter);
 
         assert!(valid);
+    }
+
+    #[test]
+    pub fn test_verify_multiple_signatures_invalid() {
+        let mut rng = &mut rand::thread_rng();
+        let n = 10; // Signatures
+        let m = 3; // PublicKeys per Signature
+        let mut msgs: Vec<Vec<u8>> = vec![vec![]; n];
+        let mut public_keys: Vec<Vec<PublicKey>> = vec![vec![]; n];
+        let mut aggregate_signatures: Vec<AggregateSignature> = vec![];
+
+        let keypairs: Vec<Keypair> = (0..n * m).map(|_| Keypair::random(&mut rng)).collect();
+
+        // Deliberate use bad secret key
+        let sk = SecretKey::from_bytes(&[1u8; 32]).unwrap();
+
+        for i in 0..n {
+            let mut aggregate_signature = AggregateSignature::new();
+            msgs[i] = vec![i as u8; 32];
+            for j in 0..m {
+                let keypair = &keypairs[i * m + j];
+                public_keys[i].push(keypair.pk.clone());
+
+                let signature = Signature::new(&msgs[i], &sk);
+                aggregate_signature.add(&signature);
+            }
+            aggregate_signatures.push(aggregate_signature);
+        }
+
+        // Remove mutability
+        let msgs: Vec<Vec<u8>> = msgs;
+        let public_keys: Vec<Vec<PublicKey>> = public_keys;
+        let aggregate_signatures: Vec<AggregateSignature> = aggregate_signatures;
+
+        // Create reference iterators
+        let ref_vec = vec![1u8; 32];
+        let ref_pk = PublicKey::new_from_raw(&GroupG1::new());
+        let ref_as = AggregateSignature::new();
+        let mut msgs_refs: Vec<&[u8]> = vec![&ref_vec; n];
+        let mut public_keys_refs: Vec<Vec<&PublicKey>> = vec![vec![&ref_pk; m]; n];
+        let mut aggregate_signatures_refs: Vec<&AggregateSignature> = vec![&ref_as; n];
+
+        for i in 0..n {
+            msgs_refs[i] = &msgs[i];
+            aggregate_signatures_refs[i] = &aggregate_signatures[i];
+            for j in 0..m {
+                public_keys_refs[i][j] = &public_keys[i][j];
+            }
+        }
+
+        let mega_iter = aggregate_signatures_refs
+            .into_iter()
+            .zip(public_keys_refs.iter().map(|x| x.as_slice()))
+            .zip(msgs_refs.iter().map(|x| *x))
+            .map(|((a, b), c)| (a, b, c));
+
+        let valid = AggregateSignature::verify_multiple_aggregate_signatures(&mut rng, mega_iter);
+
+        // Shoud not verify as bad secret key was used for signing
+        assert!(!valid);
+    }
+
+    #[test]
+    fn test_aggregate_verify() {
+        let mut rng = &mut rand::thread_rng();
+        let n = 10; // Number of signatures
+        let mut msgs: Vec<Vec<u8>> = vec![vec![]; n];
+        let mut public_keys: Vec<PublicKey> = vec![];
+        let mut aggregate_signature = AggregateSignature::new();
+
+        // Create keys and sign messages
+        for i in 0..n {
+            msgs[i] = vec![i as u8; 32];
+            let key_pair = Keypair::random(&mut rng);
+            let signature = Signature::new(&msgs[i], &key_pair.sk);
+
+            public_keys.push(key_pair.pk);
+            aggregate_signature.add(&signature);
+        }
+
+        // Convert to references
+        let msgs_refs: Vec<&[u8]> = msgs.iter().map(|x| x.as_slice()).collect();
+        let public_keys_refs: Vec<&PublicKey> = public_keys.iter().map(|x| x).collect();
+
+        assert!(aggregate_signature.aggregate_verify(&msgs_refs, &public_keys_refs));
+    }
+
+    #[test]
+    fn test_aggregate_verify_msg_repeat() {
+        let mut rng = &mut rand::thread_rng();
+        let n = 10; // Number of signatures
+        let mut msgs: Vec<Vec<u8>> = vec![vec![]; n];
+        let mut public_keys: Vec<PublicKey> = vec![];
+        let mut aggregate_signature = AggregateSignature::new();
+
+        // Create keys and sign messages
+        for i in 0..n {
+            // Deliberately repeat one message
+            if i == n - 1 {
+                msgs[i] = vec![0u8; 32];
+            } else {
+                msgs[i] = vec![i as u8; 32];
+            }
+            let key_pair = Keypair::random(&mut rng);
+            let signature = Signature::new(&msgs[i], &key_pair.sk);
+
+            public_keys.push(key_pair.pk);
+            aggregate_signature.add(&signature);
+        }
+
+        // Convert to references
+        let msgs_refs: Vec<&[u8]> = msgs.iter().map(|x| x.as_slice()).collect();
+        let public_keys_refs: Vec<&PublicKey> = public_keys.iter().map(|x| x).collect();
+
+        // Verification should be false due to repeated message
+        assert!(!aggregate_signature.aggregate_verify(&msgs_refs, &public_keys_refs));
+    }
+
+    #[test]
+    fn test_aggregate_verify_invalid_signature() {
+        let mut rng = &mut rand::thread_rng();
+        let n = 10; // Number of signatures
+        let mut msgs: Vec<Vec<u8>> = vec![vec![]; n];
+        let mut public_keys: Vec<PublicKey> = vec![];
+        let mut aggregate_signature = AggregateSignature::new();
+
+        // Create keys and sign messages
+        for i in 0..n {
+            // Deliberately repeat one message
+            msgs[i] = vec![i as u8; 32];
+            let key_pair = Keypair::random(&mut rng);
+            let signature = Signature::new(&msgs[i], &key_pair.sk);
+
+            public_keys.push(key_pair.pk);
+
+            // Deliberate don't add a signature
+            if i != n - 1 {
+                aggregate_signature.add(&signature);
+            }
+        }
+
+        // Convert to references
+        let msgs_refs: Vec<&[u8]> = msgs.iter().map(|x| x.as_slice()).collect();
+        let public_keys_refs: Vec<&PublicKey> = public_keys.iter().map(|x| x).collect();
+
+        // Verification should be false due to invalid signature
+        assert!(!aggregate_signature.aggregate_verify(&msgs_refs, &public_keys_refs));
+    }
+
+    #[test]
+    fn test_aggregate_verify_too_many_public_keys() {
+        let mut rng = &mut rand::thread_rng();
+        let msg = vec![1u8; 32];
+        let mut public_keys: Vec<PublicKey> = vec![];
+        let mut aggregate_signature = AggregateSignature::new();
+
+        let key_pair = Keypair::random(&mut rng);
+        let signature = Signature::new(&msg, &key_pair.sk);
+
+        public_keys.push(key_pair.pk.clone());
+        public_keys.push(key_pair.pk);
+
+        aggregate_signature.add(&signature);
+
+        // Convert to references
+        let public_keys_refs: Vec<&PublicKey> = public_keys.iter().map(|x| x).collect();
+
+        // Verification should be false due to too many public keys
+        assert!(!aggregate_signature.aggregate_verify(&[&msg], &public_keys_refs));
+    }
+
+    #[test]
+    fn test_aggregate_verify_too_many_messages() {
+        let mut rng = &mut rand::thread_rng();
+        let msg = vec![1u8; 32];
+        let mut aggregate_signature = AggregateSignature::new();
+
+        let key_pair = Keypair::random(&mut rng);
+        let signature = Signature::new(&msg, &key_pair.sk);
+
+        aggregate_signature.add(&signature);
+
+        // Verification should be false due to too many messages
+        assert!(!aggregate_signature.aggregate_verify(&[&msg, &msg], &[&key_pair.pk]));
     }
 }
