@@ -401,8 +401,8 @@ mod tests {
             let mut signing_agg_pub = AggregatePublicKey::new();
             for keypair in &signing_kps {
                 let sig = Signature::new(&message, &keypair.sk);
-                assert!(sig.core_verify(&message, &keypair.pk));
-                assert!(!sig.core_verify(&message, &control_kp.pk));
+                assert!(sig.verify(&message, &keypair.pk));
+                assert!(!sig.verify(&message, &control_kp.pk));
                 agg_signature.add(&sig);
                 signing_agg_pub.add(&keypair.pk);
             }

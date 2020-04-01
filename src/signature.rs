@@ -27,8 +27,8 @@ impl Signature {
     /// CoreVerify
     ///
     /// Verifies the Signature against a PublicKey.
-    /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-2.7
-    pub fn core_verify(&self, msg: &[u8], pk: &PublicKey) -> bool {
+    /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.3
+    pub fn verify(&self, msg: &[u8], pk: &PublicKey) -> bool {
         // Subgroup checks
         if !subgroup_check_g1(pk.point.as_raw()) || !subgroup_check_g2(self.point.as_raw()) {
             return false;
@@ -82,7 +82,7 @@ mod tests {
              */
             let bytes = m.as_bytes();
             let sig = Signature::new(&bytes, &sk);
-            assert!(sig.core_verify(&bytes, &vk));
+            assert!(sig.verify(&bytes, &vk));
 
             /*
              * Test serializing, then deserializing the signature
@@ -90,7 +90,7 @@ mod tests {
             let sig_bytes = sig.as_bytes();
             let new_sig = Signature::from_bytes(&sig_bytes).unwrap();
             assert_eq!(&sig.as_bytes(), &new_sig.as_bytes());
-            assert!(new_sig.core_verify(&bytes, &vk));
+            assert!(new_sig.verify(&bytes, &vk));
         }
     }
 
@@ -103,8 +103,8 @@ mod tests {
         let mut msg = "Some msg";
         let sig = Signature::new(&msg.as_bytes(), &sk);
         msg = "Other msg";
-        assert_eq!(sig.core_verify(&msg.as_bytes(), &vk), false);
+        assert_eq!(sig.verify(&msg.as_bytes(), &vk), false);
         msg = "";
-        assert_eq!(sig.core_verify(&msg.as_bytes(), &vk), false);
+        assert_eq!(sig.verify(&msg.as_bytes(), &vk), false);
     }
 }

@@ -312,11 +312,11 @@ mod tests {
 
         let message = "cats".as_bytes();
         let signature = Signature::new(&message, &sk);
-        assert!(signature.core_verify(&message, &pk));
+        assert!(signature.verify(&message, &pk));
 
         let pk_bytes = pk.as_bytes();
         let pk = PublicKey::from_bytes(&pk_bytes).unwrap();
-        assert!(signature.core_verify(&message, &pk));
+        assert!(signature.verify(&message, &pk));
     }
 
     #[test]
@@ -326,6 +326,6 @@ mod tests {
 
         let message = "cats".as_bytes();
         let signature = Signature::new(&message, &sk);
-        assert!(signature.core_verify(&message, &pk));
+        assert!(signature.verify(&message, &pk));
     }
 }
