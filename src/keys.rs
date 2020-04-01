@@ -5,7 +5,7 @@ extern crate zeroize;
 use self::zeroize::Zeroize;
 use super::amcl_utils::{self, Big, GroupG1, CURVE_ORDER, MODBYTES};
 use super::errors::DecodeError;
-use super::g1::{G1Point, G1Wrapper};
+use super::g1::G1Point;
 use super::rng::get_seeded_rng;
 use rand::Rng;
 #[cfg(feature = "std")]
@@ -88,12 +88,6 @@ impl Drop for SecretKey {
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct PublicKey {
     pub point: G1Point,
-}
-
-impl G1Wrapper for PublicKey {
-    fn point(&self) -> &G1Point {
-        &self.point
-    }
 }
 
 impl PublicKey {
@@ -318,11 +312,11 @@ mod tests {
 
         let message = "cats".as_bytes();
         let signature = Signature::new(&message, &sk);
-        assert!(signature.verify(&message, &pk));
+        assert!(signature.core_verify(&message, &pk));
 
         let pk_bytes = pk.as_bytes();
         let pk = PublicKey::from_bytes(&pk_bytes).unwrap();
-        assert!(signature.verify(&message, &pk));
+        assert!(signature.core_verify(&message, &pk));
     }
 
     #[test]
@@ -332,6 +326,6 @@ mod tests {
 
         let message = "cats".as_bytes();
         let signature = Signature::new(&message, &sk);
-        assert!(signature.verify(&message, &pk));
+        assert!(signature.core_verify(&message, &pk));
     }
 }

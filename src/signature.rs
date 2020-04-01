@@ -1,6 +1,8 @@
 extern crate amcl;
 
-use super::amcl_utils::{self, ate2_evaluation, hash_on_g2};
+use super::amcl_utils::{
+    self, ate2_evaluation, hash_to_curve_g2, subgroup_check_g1, subgroup_check_g2,
+};
 use super::errors::DecodeError;
 use super::g2::G2Point;
 use super::keys::{PublicKey, SecretKey};
@@ -14,7 +16,7 @@ pub struct Signature {
 impl Signature {
     /// Instantiate a new Signature from a message and a SecretKey.
     pub fn new(msg: &[u8], sk: &SecretKey) -> Self {
-        let hash_point = hash_on_g2(msg);
+        let hash_point = hash_to_curve_g2(msg);
         let mut sig = hash_point.mul(sk.as_raw());
         sig.affine();
         Self {
@@ -22,12 +24,17 @@ impl Signature {
         }
     }
 
-    /// Verify the Signature against a PublicKey.
+    /// CoreVerify
     ///
-    /// In theory, should only return true if the PublicKey matches the SecretKey used to
-    /// instantiate the Signature.
-    pub fn verify(&self, msg: &[u8], pk: &PublicKey) -> bool {
-        let mut msg_hash_point = hash_on_g2(msg);
+    /// Verifies the Signature against a PublicKey.
+    /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-2.7
+    pub fn core_verify(&self, msg: &[u8], pk: &PublicKey) -> bool {
+        // Subgroup checks
+        if !subgroup_check_g1(pk.point.as_raw()) || !subgroup_check_g2(self.point.as_raw()) {
+            return false;
+        }
+
+        let mut msg_hash_point = hash_to_curve_g2(msg);
         msg_hash_point.affine();
 
         // Faster ate2 evaualtion checks e(S, -G1) * e(H, PK) == 1
@@ -75,7 +82,7 @@ mod tests {
              */
             let bytes = m.as_bytes();
             let sig = Signature::new(&bytes, &sk);
-            assert!(sig.verify(&bytes, &vk));
+            assert!(sig.core_verify(&bytes, &vk));
 
             /*
              * Test serializing, then deserializing the signature
@@ -83,7 +90,7 @@ mod tests {
             let sig_bytes = sig.as_bytes();
             let new_sig = Signature::from_bytes(&sig_bytes).unwrap();
             assert_eq!(&sig.as_bytes(), &new_sig.as_bytes());
-            assert!(new_sig.verify(&bytes, &vk));
+            assert!(new_sig.core_verify(&bytes, &vk));
         }
     }
 
@@ -96,8 +103,8 @@ mod tests {
         let mut msg = "Some msg";
         let sig = Signature::new(&msg.as_bytes(), &sk);
         msg = "Other msg";
-        assert_eq!(sig.verify(&msg.as_bytes(), &vk), false);
+        assert_eq!(sig.core_verify(&msg.as_bytes(), &vk), false);
         msg = "";
-        assert_eq!(sig.verify(&msg.as_bytes(), &vk), false);
+        assert_eq!(sig.core_verify(&msg.as_bytes(), &vk), false);
     }
 }

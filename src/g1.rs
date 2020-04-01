@@ -3,10 +3,6 @@ use super::errors::DecodeError;
 #[cfg(feature = "std")]
 use std::fmt;
 
-pub trait G1Wrapper {
-    fn point(&self) -> &G1Point;
-}
-
 pub struct G1Point {
     point: GroupG1,
 }

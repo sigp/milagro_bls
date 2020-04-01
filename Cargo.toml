@@ -1,6 +1,6 @@
 [package]
 name = "milagro_bls"
-version = "1.0.1"
+version = "1.0.0"
 authors = ["Lovesh Harchandani <lovesh.bond@gmail.com>", "Kirk Baird <kirk@sigmaprime.io>", "Paul Hauner <paul@sigmaprime.io>"]
 description = "BLS12-381 signatures using the Apache Milagro curve library, targeting Ethereum 2.0"
 license = "Apache-2.0"
