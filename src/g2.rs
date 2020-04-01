@@ -38,7 +38,7 @@ impl G2Point {
         &self.point
     }
 
-    pub fn into_raw(&self) -> GroupG2 {
+    pub fn into_raw(self) -> GroupG2 {
         self.point
     }
 
@@ -49,8 +49,8 @@ impl G2Point {
     }
 
     /// Export (serialize) the point to compressed bytes.
-    pub fn as_bytes(&mut self) -> Vec<u8> {
-        compress_g2(&mut self.point)
+    pub fn as_bytes(&self) -> Vec<u8> {
+        compress_g2(&self.point)
     }
 }
 
@@ -73,10 +73,7 @@ impl Clone for G2Point {
 
 impl PartialEq for G2Point {
     fn eq(&self, other: &G2Point) -> bool {
-        let mut clone_a = self.clone();
-        let mut clone_b = other.clone();
-
-        clone_a.point.equals(&mut clone_b.point)
+        self.point.equals(&other.point)
     }
 }
 
