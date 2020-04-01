@@ -146,7 +146,7 @@ impl AggregateSignature {
     pub fn fast_aggregate_verify_pre_aggregated(
         &self,
         msg: &[u8],
-        avk: &AggregatePublicKey,
+        aggregate_public_key: &AggregatePublicKey,
     ) -> bool {
         // Subgroup check for signature
         if !subgroup_check_g2(self.point.as_raw()) {
@@ -154,7 +154,7 @@ impl AggregateSignature {
         }
 
         let mut sig_point = self.point.clone();
-        let mut key_point = avk.point.clone();
+        let mut key_point = aggregate_public_key.point.clone();
         sig_point.affine();
         key_point.affine();
         let mut msg_hash_point = hash_to_curve_g2(msg);
