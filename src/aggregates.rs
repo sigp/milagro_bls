@@ -179,7 +179,7 @@ impl AggregateSignature {
     pub fn verify_multiple_aggregate_signatures<'a, R, I>(rng: &mut R, signature_sets: I) -> bool
     where
         R: Rng + ?Sized,
-        I: Iterator<Item = (&'a AggregateSignature, &'a Vec<&'a PublicKey>, &'a [u8])>,
+        I: Iterator<Item = (&'a AggregateSignature, &'a [&'a PublicKey], &'a [u8])>,
     {
         // Sum of (AggregateSignature[i] * rand[i]) for all AggregateSignatures - S'
         let mut final_agg_sig = GroupG2::new();
@@ -664,7 +664,7 @@ mod tests {
 
         let mega_iter = aggregate_signatures_refs
             .into_iter()
-            .zip(public_keys_refs.iter())
+            .zip(public_keys_refs.iter().map(|x| x.as_slice()))
             .zip(msgs_refs.iter().map(|x| *x))
             .map(|((a, b), c)| (a, b, c));
 
