@@ -35,25 +35,29 @@ impl AggregatePublicKey {
     /// Instantiate a new aggregate public key from a vector of PublicKeys.
     ///
     /// This is a helper method combining the `new()` and `add()` functions.
-    pub fn from_public_keys(keys: &[&PublicKey]) -> Self {
+    pub fn aggregate(keys: &[&PublicKey]) -> Self {
         let mut agg_key = AggregatePublicKey::new();
         for key in keys {
             agg_key.point.add(&key.point)
         }
-        agg_key.point.affine();
         agg_key
+    }
+
+    /// Instantiate a new aggregate public key from a single PublicKey.
+    pub fn from_public_key(key: &PublicKey) -> Self {
+        AggregatePublicKey {
+            point: key.point.clone(),
+        }
     }
 
     /// Add a PublicKey to the AggregatePublicKey.
     pub fn add(&mut self, public_key: &PublicKey) {
         self.point.add(&public_key.point);
-        //self.point.affine();
     }
 
     /// Add a AggregatePublicKey to the AggregatePublicKey.
     pub fn add_aggregate(&mut self, aggregate_public_key: &AggregatePublicKey) {
         self.point.add(&aggregate_public_key.point);
-        //self.point.affine();
     }
 
     /// Instantiate an AggregatePublicKey from compressed bytes.
@@ -90,6 +94,25 @@ impl AggregateSignature {
     pub fn new() -> Self {
         Self {
             point: G2Point::new(),
+        }
+    }
+
+    /// Instantiate a new AggregateSignature from a vector of Signatures.
+    ///
+    /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-2.8
+    pub fn aggregate(signatures: &[&Signature]) -> Self {
+        let mut aggregate_signature = AggregateSignature::new();
+        for sig in signatures {
+            aggregate_signature.point.add(&sig.point)
+        }
+        aggregate_signature.point.affine();
+        aggregate_signature
+    }
+
+    /// Instantiate a new AggregateSignature from a single Signature.
+    pub fn from_signature(signature: &Signature) -> Self {
+        AggregateSignature {
+            point: signature.point.clone(),
         }
     }
 
@@ -180,7 +203,7 @@ impl AggregateSignature {
         }
 
         // Aggregate PublicKeys
-        let aggregate_public_key = AggregatePublicKey::from_public_keys(public_keys);
+        let aggregate_public_key = AggregatePublicKey::aggregate(public_keys);
 
         // Hash message to curve
         let mut msg_hash = hash_to_curve_g2(msg);
@@ -268,9 +291,8 @@ impl AggregateSignature {
             let mut msg_hash = hash_to_curve_g2(message);
 
             // Aggregate PublicKeys - Apk[i]
-            let mut aggregate_public_key = AggregatePublicKey::from_public_keys(public_keys)
-                .point
-                .into_raw();
+            let mut aggregate_public_key =
+                AggregatePublicKey::aggregate(public_keys).point.into_raw();
 
             // rand[i] * Apk[i]
             aggregate_public_key = aggregate_public_key.mul(&rand);
@@ -490,11 +512,11 @@ mod tests {
              */
             let mut subset_pub_keys: Vec<&PublicKey> =
                 signing_kps_subset.iter().map(|kp| &kp.pk).collect();
-            let subset_agg_key = AggregatePublicKey::from_public_keys(&subset_pub_keys.as_slice());
+            let subset_agg_key = AggregatePublicKey::aggregate(&subset_pub_keys.as_slice());
             assert!(!agg_signature.fast_aggregate_verify_pre_aggregated(&message, &subset_agg_key));
             // Sanity check the subset test by completing the set and verifying it.
             subset_pub_keys.push(&signing_kps[signing_kps.len() - 1].pk);
-            let subset_agg_key = AggregatePublicKey::from_public_keys(&subset_pub_keys);
+            let subset_agg_key = AggregatePublicKey::aggregate(&subset_pub_keys);
             assert!(agg_signature.fast_aggregate_verify_pre_aggregated(&message, &subset_agg_key));
 
             /*
@@ -503,7 +525,7 @@ mod tests {
             let non_signing_pub_keys: Vec<&PublicKey> =
                 non_signing_kps.iter().map(|kp| &kp.pk).collect();
             let non_signing_agg_key =
-                AggregatePublicKey::from_public_keys(&non_signing_pub_keys.as_slice());
+                AggregatePublicKey::aggregate(&non_signing_pub_keys.as_slice());
             assert!(
                 !agg_signature.fast_aggregate_verify_pre_aggregated(&message, &non_signing_agg_key)
             );
@@ -614,14 +636,12 @@ mod tests {
         let keypair_3 = Keypair::random(&mut rand::thread_rng());
         let keypair_4 = Keypair::random(&mut rand::thread_rng());
 
-        let aggregate_public_key12 =
-            AggregatePublicKey::from_public_keys(&[&keypair_1.pk, &keypair_2.pk]);
+        let aggregate_public_key12 = AggregatePublicKey::aggregate(&[&keypair_1.pk, &keypair_2.pk]);
 
-        let aggregate_public_key34 =
-            AggregatePublicKey::from_public_keys(&[&keypair_3.pk, &keypair_4.pk]);
+        let aggregate_public_key34 = AggregatePublicKey::aggregate(&[&keypair_3.pk, &keypair_4.pk]);
 
         // Should be the same as adding two aggregates
-        let aggregate_public_key1234 = AggregatePublicKey::from_public_keys(&[
+        let aggregate_public_key1234 = AggregatePublicKey::aggregate(&[
             &keypair_1.pk,
             &keypair_2.pk,
             &keypair_3.pk,
@@ -651,7 +671,7 @@ mod tests {
         let sig_4 = Signature::new(&msg, &keypair_4.sk);
 
         // Should be the same as adding two aggregates
-        let aggregate_public_key = AggregatePublicKey::from_public_keys(&[
+        let aggregate_public_key = AggregatePublicKey::aggregate(&[
             &keypair_1.pk,
             &keypair_2.pk,
             &keypair_3.pk,
@@ -920,5 +940,31 @@ mod tests {
 
         // Verification should be false due to too many messages
         assert!(!aggregate_signature.aggregate_verify(&[&msg, &msg], &[&key_pair.pk]));
+    }
+
+    #[test]
+    fn test_from_public_key() {
+        let multiplier = Big::new_int(5);
+        let mut point = GroupG1::generator();
+        point = point.mul(&multiplier);
+        let public_key = PublicKey {
+            point: G1Point::from_raw(point.clone()),
+        };
+        let aggregate_public_key = AggregatePublicKey::from_public_key(&public_key);
+
+        assert_eq!(public_key.point, aggregate_public_key.point);
+    }
+
+    #[test]
+    fn test_from_signature() {
+        let multiplier = Big::new_int(5);
+        let mut point = GroupG2::generator();
+        point = point.mul(&multiplier);
+        let signature = Signature {
+            point: G2Point::from_raw(point.clone()),
+        };
+        let aggregate_signature = AggregateSignature::from_signature(&signature);
+
+        assert_eq!(signature.point, aggregate_signature.point);
     }
 }
