@@ -267,7 +267,7 @@ impl AggregateSignature {
     pub fn verify_multiple_aggregate_signatures<'a, R, I>(rng: &mut R, signature_sets: I) -> bool
     where
         R: Rng + ?Sized,
-        I: Iterator<Item = (&'a AggregateSignature, &'a [&'a PublicKey], &'a [u8])>,
+        I: Iterator<Item = (&'a AggregateSignature, &'a AggregatePublicKey, &'a [u8])>,
     {
         // Sum of (AggregateSignature[i] * rand[i]) for all AggregateSignatures - S'
         let mut final_agg_sig = GroupG2::new();
@@ -275,8 +275,8 @@ impl AggregateSignature {
         // Stores current value of pairings
         let mut pairing = pair::initmp();
 
-        for (aggregate_signature, public_keys, message) in signature_sets {
-            // TODO: Consider increasing rand size from 2^63 to 2^128
+        for (aggregate_signature, aggregate_public_key, message) in signature_sets {
+            // TODO: Consider increasing rand security from 2^63 to 2^128
             // Create random offset - rand[i]
             let mut rand = 0;
             while rand == 0 {
@@ -290,12 +290,8 @@ impl AggregateSignature {
             // Hash message to curve - H(message[i])
             let mut msg_hash = hash_to_curve_g2(message);
 
-            // Aggregate PublicKeys - Apk[i]
-            let mut aggregate_public_key =
-                AggregatePublicKey::aggregate(public_keys).point.into_raw();
-
             // rand[i] * Apk[i]
-            aggregate_public_key = aggregate_public_key.mul(&rand);
+            let mut aggregate_public_key = aggregate_public_key.point.as_raw().mul(&rand);
 
             // Points must be affine before pairings
             msg_hash.affine();
@@ -708,48 +704,48 @@ mod tests {
         let n = 10; // Signatures
         let m = 3; // PublicKeys per Signature
         let mut msgs: Vec<Vec<u8>> = vec![vec![]; n];
-        let mut public_keys: Vec<Vec<PublicKey>> = vec![vec![]; n];
+        let mut aggregate_public_keys: Vec<AggregatePublicKey> = vec![];
         let mut aggregate_signatures: Vec<AggregateSignature> = vec![];
 
         let keypairs: Vec<Keypair> = (0..n * m).map(|_| Keypair::random(&mut rng)).collect();
 
         for i in 0..n {
             let mut aggregate_signature = AggregateSignature::new();
+            let mut aggregate_public_key = AggregatePublicKey::new();
             msgs[i] = vec![i as u8; 32];
             for j in 0..m {
                 let keypair = &keypairs[i * m + j];
-                public_keys[i].push(keypair.pk.clone());
-
                 let signature = Signature::new(&msgs[i], &keypair.sk);
+
+                aggregate_public_key.add(&keypair.pk);
                 aggregate_signature.add(&signature);
             }
+            aggregate_public_keys.push(aggregate_public_key);
             aggregate_signatures.push(aggregate_signature);
         }
 
         // Remove mutability
         let msgs: Vec<Vec<u8>> = msgs;
-        let public_keys: Vec<Vec<PublicKey>> = public_keys;
+        let aggregate_public_keys: Vec<AggregatePublicKey> = aggregate_public_keys;
         let aggregate_signatures: Vec<AggregateSignature> = aggregate_signatures;
 
         // Create reference iterators
         let ref_vec = vec![1u8; 32];
-        let ref_pk = PublicKey::new_from_raw(&GroupG1::new());
+        let ref_apk = AggregatePublicKey::new();
         let ref_as = AggregateSignature::new();
         let mut msgs_refs: Vec<&[u8]> = vec![&ref_vec; n];
-        let mut public_keys_refs: Vec<Vec<&PublicKey>> = vec![vec![&ref_pk; m]; n];
+        let mut aggregate_public_keys_refs: Vec<&AggregatePublicKey> = vec![&ref_apk; n];
         let mut aggregate_signatures_refs: Vec<&AggregateSignature> = vec![&ref_as; n];
 
         for i in 0..n {
             msgs_refs[i] = &msgs[i];
             aggregate_signatures_refs[i] = &aggregate_signatures[i];
-            for j in 0..m {
-                public_keys_refs[i][j] = &public_keys[i][j];
-            }
+            aggregate_public_keys_refs[i] = &aggregate_public_keys[i];
         }
 
         let mega_iter = aggregate_signatures_refs
             .into_iter()
-            .zip(public_keys_refs.iter().map(|x| x.as_slice()))
+            .zip(aggregate_public_keys_refs)
             .zip(msgs_refs.iter().map(|x| *x))
             .map(|((a, b), c)| (a, b, c));
 
@@ -764,57 +760,57 @@ mod tests {
         let n = 10; // Signatures
         let m = 3; // PublicKeys per Signature
         let mut msgs: Vec<Vec<u8>> = vec![vec![]; n];
-        let mut public_keys: Vec<Vec<PublicKey>> = vec![vec![]; n];
+        let mut aggregate_public_keys: Vec<AggregatePublicKey> = vec![];
         let mut aggregate_signatures: Vec<AggregateSignature> = vec![];
 
         let keypairs: Vec<Keypair> = (0..n * m).map(|_| Keypair::random(&mut rng)).collect();
 
-        // Deliberate use bad secret key
+        // Deliberately use bad SecretKey
         let sk = SecretKey::from_bytes(&[1u8; 32]).unwrap();
 
         for i in 0..n {
             let mut aggregate_signature = AggregateSignature::new();
+            let mut aggregate_public_key = AggregatePublicKey::new();
             msgs[i] = vec![i as u8; 32];
             for j in 0..m {
                 let keypair = &keypairs[i * m + j];
-                public_keys[i].push(keypair.pk.clone());
-
                 let signature = Signature::new(&msgs[i], &sk);
+
+                aggregate_public_key.add(&keypair.pk);
                 aggregate_signature.add(&signature);
             }
+            aggregate_public_keys.push(aggregate_public_key);
             aggregate_signatures.push(aggregate_signature);
         }
 
         // Remove mutability
         let msgs: Vec<Vec<u8>> = msgs;
-        let public_keys: Vec<Vec<PublicKey>> = public_keys;
+        let aggregate_public_keys: Vec<AggregatePublicKey> = aggregate_public_keys;
         let aggregate_signatures: Vec<AggregateSignature> = aggregate_signatures;
 
         // Create reference iterators
         let ref_vec = vec![1u8; 32];
-        let ref_pk = PublicKey::new_from_raw(&GroupG1::new());
+        let ref_apk = AggregatePublicKey::new();
         let ref_as = AggregateSignature::new();
         let mut msgs_refs: Vec<&[u8]> = vec![&ref_vec; n];
-        let mut public_keys_refs: Vec<Vec<&PublicKey>> = vec![vec![&ref_pk; m]; n];
+        let mut aggregate_public_keys_refs: Vec<&AggregatePublicKey> = vec![&ref_apk; n];
         let mut aggregate_signatures_refs: Vec<&AggregateSignature> = vec![&ref_as; n];
 
         for i in 0..n {
             msgs_refs[i] = &msgs[i];
             aggregate_signatures_refs[i] = &aggregate_signatures[i];
-            for j in 0..m {
-                public_keys_refs[i][j] = &public_keys[i][j];
-            }
+            aggregate_public_keys_refs[i] = &aggregate_public_keys[i];
         }
 
         let mega_iter = aggregate_signatures_refs
             .into_iter()
-            .zip(public_keys_refs.iter().map(|x| x.as_slice()))
+            .zip(aggregate_public_keys_refs)
             .zip(msgs_refs.iter().map(|x| *x))
             .map(|((a, b), c)| (a, b, c));
 
         let valid = AggregateSignature::verify_multiple_aggregate_signatures(&mut rng, mega_iter);
 
-        // Shoud not verify as bad secret key was used for signing
+        // Should verify as false due to bad secret key
         assert!(!valid);
     }
 
