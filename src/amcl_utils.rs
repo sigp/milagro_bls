@@ -4,7 +4,7 @@ extern crate hex;
 extern crate rand;
 
 use super::errors::DecodeError;
-use BLSCurve::bls381::hash_to_curve_g2;
+use BLSCurve::bls381;
 use BLSCurve::ecp::ECP;
 use BLSCurve::ecp2::ECP2;
 use BLSCurve::pair::{ate2, fexp};
@@ -30,8 +30,22 @@ lazy_static! {
 }
 
 // Take given message convert it to GroupG2 point
-pub fn hash_on_g2(msg: &[u8]) -> GroupG2 {
-    hash_to_curve_g2(msg)
+pub fn hash_to_curve_g2(msg: &[u8]) -> GroupG2 {
+    bls381::hash_to_curve_g2(msg)
+}
+
+// Verifies a G1 point is in subgroup `r`.
+pub fn subgroup_check_g1(point: &GroupG1) -> bool {
+    let r = Big::new_ints(&CURVE_ORDER);
+    let check = point.mul(&r);
+    check.is_infinity()
+}
+
+// Verifies a G2 point is in subgroup `r`.
+pub fn subgroup_check_g2(point: &GroupG2) -> bool {
+    let r = Big::new_ints(&CURVE_ORDER);
+    let check = point.mul(&r);
+    check.is_infinity()
 }
 
 // Compare values of two FP2 elements,
@@ -53,9 +67,9 @@ pub fn cmp_fp2(num1: &mut FP2, num2: &mut FP2) -> isize {
 
 // Evaluation of e(A, B) * e(C, D) == 1
 pub fn ate2_evaluation(a: &GroupG2, b: &GroupG1, c: &GroupG2, d: &GroupG1) -> bool {
-    let mut e = ate2(&a, &b, &c, &d);
-    e = fexp(&e);
-    FP12::new_int(1).equals(&e)
+    let mut pairing = ate2(&a, &b, &c, &d);
+    pairing = fexp(&pairing);
+    FP12::new_int(1).equals(&pairing)
 }
 
 // Take a GroupG1 point (x, y) and compress it to a 384 bit array.
