@@ -3,7 +3,7 @@ extern crate rand;
 
 use super::amcl_utils::{
     self, ate2_evaluation, hash_to_curve_g2, pair, subgroup_check_g1, subgroup_check_g2, Big,
-    GroupG1, GroupG2,
+    GroupG1, GroupG2, G1_BYTE_SIZE,
 };
 use super::errors::DecodeError;
 use super::g1::G1Point;
@@ -19,6 +19,7 @@ use rand::Rng;
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct AggregatePublicKey {
     pub point: G1Point,
+    is_empty: bool,
 }
 
 impl AggregatePublicKey {
@@ -28,6 +29,7 @@ impl AggregatePublicKey {
     pub fn new() -> Self {
         Self {
             point: G1Point::new(),
+            is_empty: true,
         }
     }
 
@@ -35,7 +37,10 @@ impl AggregatePublicKey {
     ///
     /// This is a helper method combining the `new()` and `add()` functions.
     pub fn aggregate(keys: &[&PublicKey]) -> Self {
-        let mut agg_key = AggregatePublicKey::new();
+        let mut agg_key = Self {
+            point: G1Point::new(),
+            is_empty: keys.len() == 0,
+        };
         for key in keys {
             agg_key.point.add(&key.point)
         }
@@ -46,28 +51,53 @@ impl AggregatePublicKey {
     pub fn from_public_key(key: &PublicKey) -> Self {
         AggregatePublicKey {
             point: key.point.clone(),
+            is_empty: false,
         }
     }
 
     /// Add a PublicKey to the AggregatePublicKey.
     pub fn add(&mut self, public_key: &PublicKey) {
         self.point.add(&public_key.point);
+        self.is_empty = false;
     }
 
     /// Add a AggregatePublicKey to the AggregatePublicKey.
     pub fn add_aggregate(&mut self, aggregate_public_key: &AggregatePublicKey) {
         self.point.add(&aggregate_public_key.point);
+        self.is_empty = self.is_empty && aggregate_public_key.is_empty;
     }
 
     /// Instantiate an AggregatePublicKey from compressed bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<AggregatePublicKey, DecodeError> {
+        let empty = [0u8; G1_BYTE_SIZE / 2];
+        if bytes.len() == empty.len()
+            && bytes.starts_with(&empty[0..32])
+            && bytes.ends_with(&empty[32..32 + (G1_BYTE_SIZE / 2) % 32])
+        {
+            return Ok(Self {
+                point: G1Point::new(),
+                is_empty: true,
+            });
+        }
+
         let point = G1Point::from_bytes(bytes)?;
-        Ok(Self { point })
+        Ok(Self {
+            point,
+            is_empty: false,
+        })
     }
 
     /// Export the AggregatePublicKey to compressed bytes.
     pub fn as_bytes(&self) -> Vec<u8> {
+        if self.is_empty {
+            return vec![0; G1_BYTE_SIZE / 2];
+        }
         self.point.as_bytes()
+    }
+
+    /// Returns true if any PublicKeys have been added.
+    pub fn is_empty(&self) -> bool {
+        self.is_empty
     }
 }
 
@@ -133,8 +163,8 @@ impl AggregateSignature {
     /// Verifies an AggregateSignature against a list of Messages and PublicKeys
     /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.1.1
     pub fn aggregate_verify(&self, msgs: &[&[u8]], public_keys: &[&PublicKey]) -> bool {
-        // Require same number of messages as public keys
-        if msgs.len() != public_keys.len() {
+        // Require same number of messages as PublicKeys and >=1 PublicKeys.
+        if msgs.len() != public_keys.len() || public_keys.len() == 0 {
             return false;
         }
 
@@ -196,6 +226,11 @@ impl AggregateSignature {
     /// Verifies an AggregateSignature against a list of PublicKeys
     /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.3.4
     pub fn fast_aggregate_verify(&self, msg: &[u8], public_keys: &[&PublicKey]) -> bool {
+        // Require atleast one PublicKey
+        if public_keys.len() == 0 {
+            return false;
+        }
+
         // Subgroup check for signature
         if !subgroup_check_g2(self.point.as_raw()) {
             return false;
@@ -231,6 +266,11 @@ impl AggregateSignature {
         msg: &[u8],
         aggregate_public_key: &AggregatePublicKey,
     ) -> bool {
+        // Require at least one PublicKey added to the AggregatePublicKey
+        if aggregate_public_key.is_empty() {
+            return false;
+        }
+
         // Subgroup check for signature
         if !subgroup_check_g2(self.point.as_raw()) {
             return false;
@@ -275,6 +315,11 @@ impl AggregateSignature {
         let mut pairing = pair::initmp();
 
         for (aggregate_signature, aggregate_public_key, message) in signature_sets {
+            // Require at least one PublicKey added to the AggregatePublicKey
+            if aggregate_public_key.is_empty() {
+                return false;
+            }
+
             // TODO: Consider increasing rand security from 2^63 to 2^128
             // Create random offset - rand[i]
             let mut rand = 0;
