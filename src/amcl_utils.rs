@@ -13,6 +13,7 @@ use BLSCurve::rom::MODULUS;
 pub use BLSCurve::big::{Big, MODBYTES};
 pub use BLSCurve::fp12::FP12;
 pub use BLSCurve::fp2::FP2;
+pub use BLSCurve::pair;
 pub use BLSCurve::rom::CURVE_ORDER;
 
 pub type GroupG1 = ECP;

@@ -36,7 +36,7 @@ mod keys;
 mod rng;
 mod signature;
 
-use self::amcl::bls381 as BLSCurve;
+use self::amcl::bls381g2 as BLSCurve;
 
 pub use aggregates::{AggregatePublicKey, AggregateSignature};
 pub use amcl_utils::{compress_g2, decompress_g2, hash_to_curve_g2};

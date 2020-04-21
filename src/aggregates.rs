@@ -2,15 +2,14 @@ extern crate amcl;
 extern crate rand;
 
 use super::amcl_utils::{
-    self, ate2_evaluation, hash_to_curve_g2, subgroup_check_g1, subgroup_check_g2, Big, GroupG1,
-    GroupG2,
+    self, ate2_evaluation, hash_to_curve_g2, pair, subgroup_check_g1, subgroup_check_g2, Big,
+    GroupG1, GroupG2,
 };
 use super::errors::DecodeError;
 use super::g1::G1Point;
 use super::g2::G2Point;
 use super::keys::PublicKey;
 use super::signature::Signature;
-use amcl::bls381::pair;
 use rand::Rng;
 
 /// Allows for the adding/combining of multiple BLS PublicKeys.
