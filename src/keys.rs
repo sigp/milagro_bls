@@ -6,10 +6,16 @@ use self::zeroize::Zeroize;
 use super::amcl_utils::{self, Big, GroupG1, CURVE_ORDER, MODBYTES};
 use super::errors::DecodeError;
 use super::g1::G1Point;
-use super::rng::get_seeded_rng;
+use amcl::hash256::HASH256;
 use rand::Rng;
 #[cfg(feature = "std")]
 use std::fmt;
+
+// Key Generation Constants
+/// Domain for key generation.
+pub const KEY_SALT: &[u8] = b"BLS-SIG-KEYGEN-SALT-";
+/// L = ceil((3 * ceil(log2(r))) / 16) = 48.
+pub const L: u8 = 48;
 
 /// A BLS secret key.
 #[derive(Clone)]
@@ -20,9 +26,31 @@ pub struct SecretKey {
 impl SecretKey {
     /// Generate a new SecretKey using an Rng to seed the `amcl::rand::RAND` PRNG.
     pub fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
-        let mut rand = get_seeded_rng(rng, 256);
-        let x = Big::randomnum(&Big::new_ints(&CURVE_ORDER), &mut rand);
-        SecretKey { x }
+        let ikm: [u8; 32] = rng.gen();
+        Self::key_generate(&ikm, &[])
+    }
+
+    /// KeyGenerate
+    ///
+    /// Generate a new SecretKey based off Initial Keying Material (IKM) and key info.
+    /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-2.3
+    pub fn key_generate(ikm: &[u8], key_info: &[u8]) -> Self {
+        // PRK = HKDF-Extract("BLS-SIG-KEYGEN-SALT-", IKM || I2OSP(0, 1))
+        let mut prk = Vec::<u8>::with_capacity(1 + ikm.len());
+        prk.extend_from_slice(ikm);
+        prk.push(0);
+        let prk = HASH256::hkdf_extract(KEY_SALT, &prk);
+
+        // OKM = HKDF-Expand(PRK, key_info || I2OSP(L, 2), L)
+        let mut info = key_info.to_vec();
+        info.extend_from_slice(&[0, L]);
+        let okm = HASH256::hkdf_extend(&prk, &info, L);
+
+        // SK = OS2IP(OKM) mod r
+        let r = Big::new_ints(&CURVE_ORDER);
+        let mut sk = Big::frombytes(&okm);
+        sk.rmod(&r);
+        Self { x: sk }
     }
 
     /// Instantiate a SecretKey from existing bytes.

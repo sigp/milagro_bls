@@ -33,7 +33,6 @@ mod errors;
 mod g1;
 mod g2;
 mod keys;
-mod rng;
 mod signature;
 
 use self::amcl::bls381g2 as BLSCurve;
