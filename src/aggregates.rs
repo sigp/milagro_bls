@@ -69,17 +69,22 @@ impl AggregatePublicKey {
 
     /// Instantiate an AggregatePublicKey from compressed bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<AggregatePublicKey, DecodeError> {
-        let empty = [0u8; G1_BYTE_SIZE / 2];
-        if bytes.len() == empty.len()
-            && bytes.starts_with(&empty[0..32])
-            && bytes.ends_with(&empty[32..32 + (G1_BYTE_SIZE / 2) % 32])
-        {
+        // Handle the case where all bytes are 0.
+        let mut is_empty = true;
+        for byte in bytes {
+            if *byte != 0 {
+                is_empty = false;
+                break;
+            }
+        }
+        if is_empty && bytes.len() == G1_BYTE_SIZE / 2 {
             return Ok(Self {
                 point: G1Point::new(),
-                is_empty: true,
+                is_empty,
             });
         }
 
+        // Non empty bytes
         let point = G1Point::from_bytes(bytes)?;
         Ok(Self {
             point,
@@ -426,6 +431,40 @@ mod tests {
         let agg_pub_key = AggregatePublicKey::from_bytes(&agg_pub_bytes).unwrap();
 
         assert!(agg_sig.fast_aggregate_verify_pre_aggregated(&message, &agg_pub_key));
+    }
+
+    #[test]
+    fn test_empty_aggregate_public_key_serialization() {
+        let empty_bytes = vec![0; 48];
+        let agg_pub_key = AggregatePublicKey::new();
+
+        // Decoding to bytes
+        let decoded_empty_bytes = agg_pub_key.as_bytes();
+        assert_eq!(empty_bytes.len(), decoded_empty_bytes.len());
+        for byte in decoded_empty_bytes {
+            assert_eq!(byte, 0);
+        }
+
+        // Encoding from bytes
+        let encoded_agg_pub_key = AggregatePublicKey::from_bytes(&empty_bytes).unwrap();
+        assert_eq!(encoded_agg_pub_key, agg_pub_key);
+    }
+
+    #[test]
+    fn test_empty_fast_aggregate_verify_pre_aggregated() {
+        let agg_pub_key = AggregatePublicKey::new();
+        let agg_sig = AggregateSignature::new();
+
+        // Empty AggregatePublicKey should fail
+        assert!(!agg_sig.fast_aggregate_verify_pre_aggregated(&[0; 32], &agg_pub_key));
+    }
+
+    #[test]
+    fn test_empty_fast_aggregate_verify() {
+        let agg_sig = AggregateSignature::new();
+
+        // Empty PublicKey array should fail
+        assert!(!agg_sig.fast_aggregate_verify(&[0; 32], &[]));
     }
 
     fn map_secret_bytes_to_keypairs(secret_key_bytes: Vec<Vec<u8>>) -> Vec<Keypair> {
@@ -787,13 +826,14 @@ mod tests {
             aggregate_public_keys_refs[i] = &aggregate_public_keys[i];
         }
 
-        let mega_iter = aggregate_signatures_refs
+        let signature_sets = aggregate_signatures_refs
             .into_iter()
             .zip(aggregate_public_keys_refs)
             .zip(msgs_refs.iter().map(|x| *x))
             .map(|((a, b), c)| (a, b, c));
 
-        let valid = AggregateSignature::verify_multiple_aggregate_signatures(&mut rng, mega_iter);
+        let valid =
+            AggregateSignature::verify_multiple_aggregate_signatures(&mut rng, signature_sets);
 
         assert!(valid);
     }
@@ -846,15 +886,41 @@ mod tests {
             aggregate_public_keys_refs[i] = &aggregate_public_keys[i];
         }
 
-        let mega_iter = aggregate_signatures_refs
+        let signature_sets = aggregate_signatures_refs
             .into_iter()
             .zip(aggregate_public_keys_refs)
             .zip(msgs_refs.iter().map(|x| *x))
             .map(|((a, b), c)| (a, b, c));
 
-        let valid = AggregateSignature::verify_multiple_aggregate_signatures(&mut rng, mega_iter);
+        let valid =
+            AggregateSignature::verify_multiple_aggregate_signatures(&mut rng, signature_sets);
 
         // Should verify as false due to bad secret key
+        assert!(!valid);
+    }
+
+    #[test]
+    pub fn test_verify_multiple_signatures_empty() {
+        let mut rng = &mut rand::thread_rng();
+        let msgs: Vec<Vec<u8>> = vec![vec![1u8; 32]; 1];
+        let aggregate_public_keys = vec![AggregatePublicKey::new()];
+        let aggregate_signatures = vec![AggregateSignature::new()];
+
+        // Create reference iterators
+        let msgs_refs: Vec<&[u8]> = vec![&msgs[0]];
+        let aggregate_public_keys_refs: Vec<&AggregatePublicKey> = vec![&aggregate_public_keys[0]];
+        let aggregate_signatures_refs: Vec<&AggregateSignature> = vec![&aggregate_signatures[0]];
+
+        let signature_sets = aggregate_signatures_refs
+            .into_iter()
+            .zip(aggregate_public_keys_refs)
+            .zip(msgs_refs.iter().map(|x| *x))
+            .map(|((a, b), c)| (a, b, c));
+
+        let valid =
+            AggregateSignature::verify_multiple_aggregate_signatures(&mut rng, signature_sets);
+
+        // Should verify as false due to empty AggregatePublicKey
         assert!(!valid);
     }
 
