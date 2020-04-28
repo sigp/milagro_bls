@@ -1050,7 +1050,7 @@ mod tests {
         let mut point = GroupG1::generator();
         point = point.mul(&multiplier);
         let public_key = PublicKey {
-            point: GroupG1::from_raw(point.clone()),
+            point: point.clone(),
         };
         let aggregate_public_key = AggregatePublicKey::from_public_key(&public_key);
 
