@@ -5,7 +5,6 @@ use super::amcl_utils::{
     subgroup_check_g2, GroupG2,
 };
 use super::errors::DecodeError;
-// use super::g2::G2Point;
 use super::keys::{PublicKey, SecretKey};
 
 #[derive(Clone, PartialEq, Eq)]

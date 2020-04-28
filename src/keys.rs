@@ -5,7 +5,6 @@ extern crate zeroize;
 use self::zeroize::Zeroize;
 use super::amcl_utils::{self, compress_g1, decompress_g1, Big, GroupG1, CURVE_ORDER, MODBYTES};
 use super::errors::DecodeError;
-// use super::g1::G1Point;
 use amcl::hash256::HASH256;
 use rand::Rng;
 #[cfg(feature = "std")]

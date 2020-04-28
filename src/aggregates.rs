@@ -7,8 +7,6 @@ use super::amcl_utils::{
     G1_BYTE_SIZE,
 };
 use super::errors::DecodeError;
-// use super::g1::G1Point;
-// use super::g2::G2Point;
 use super::keys::PublicKey;
 use super::signature::Signature;
 use rand::Rng;
