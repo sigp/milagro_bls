@@ -11,6 +11,9 @@ use rand::Rng;
 #[cfg(feature = "std")]
 use std::fmt;
 
+/// The required number of bytes for a `SecretKey`
+pub const SECRET_KEY_BYTES: usize = 32;
+
 /// A BLS secret key.
 #[derive(Clone)]
 pub struct SecretKey {
@@ -27,16 +30,14 @@ impl SecretKey {
 
     /// Instantiate a SecretKey from existing bytes.
     pub fn from_bytes(input: &[u8]) -> Result<SecretKey, DecodeError> {
-        let mut bytes: Vec<u8>;
-        // Require input <= 48 bytes, prepend zeros if necessary.
-        if input.len() > MODBYTES {
+        // Require input 32 bytes.
+        if input.len() != SECRET_KEY_BYTES {
             return Err(DecodeError::IncorrectSize);
-        } else if input.len() < MODBYTES {
-            bytes = vec![0u8; MODBYTES - input.len()];
-            bytes.extend_from_slice(input);
-        } else {
-            bytes = input.to_vec();
         }
+
+        // Prepend to MODBYTES in length
+        let mut bytes = vec![0u8; MODBYTES - input.len()];
+        bytes.extend_from_slice(input);
 
         // Ensure secret key is in the range [0, r-1].
         let sk = Big::frombytes(&bytes);
@@ -47,12 +48,12 @@ impl SecretKey {
         Ok(SecretKey { x: sk })
     }
 
-    /// Export the SecretKey to bytes.
+    /// Export the SecretKey as 32 bytes.
     pub fn as_bytes(&self) -> Vec<u8> {
-        let mut temp = Big::new_copy(&self.x);
+        let mut temp = self.x.clone();
         let mut bytes: [u8; MODBYTES] = [0; MODBYTES];
         temp.tobytes(&mut bytes);
-        bytes.to_vec()
+        bytes[MODBYTES - SECRET_KEY_BYTES..].to_vec()
     }
 
     pub fn as_raw(&self) -> &Big {
@@ -198,9 +199,8 @@ mod tests {
     #[test]
     fn test_secret_key_serialization_isomorphism() {
         let sk_bytes = vec![
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78, 252, 122, 126, 32, 0, 75, 89, 252,
-            31, 42, 130, 254, 88, 6, 90, 138, 202, 135, 194, 233, 117, 181, 75, 96, 238, 79, 100,
-            237, 59, 140, 111,
+            78, 252, 122, 126, 32, 0, 75, 89, 252, 31, 42, 130, 254, 88, 6, 90, 138, 202, 135, 194,
+            233, 117, 181, 75, 96, 238, 79, 100, 237, 59, 140, 111,
         ];
         let sk = SecretKey::from_bytes(&sk_bytes).unwrap();
         let decoded_sk = sk.as_bytes();
@@ -281,19 +281,22 @@ mod tests {
 
     #[test]
     fn test_secret_key_from_bytes() {
-        let bytes = vec![1; 1];
-        assert!(SecretKey::from_bytes(&bytes).is_ok());
-
-        let bytes = vec![1; 49];
+        let bytes = vec![];
         assert_eq!(
             SecretKey::from_bytes(&bytes),
             Err(DecodeError::IncorrectSize)
         );
 
-        let bytes = vec![0; 48];
+        let bytes = vec![1; 33];
+        assert_eq!(
+            SecretKey::from_bytes(&bytes),
+            Err(DecodeError::IncorrectSize)
+        );
+
+        let bytes = vec![0; 32];
         assert!(SecretKey::from_bytes(&bytes).is_ok());
 
-        let bytes = vec![255; 48];
+        let bytes = vec![255; 32];
         assert_eq!(
             SecretKey::from_bytes(&bytes),
             Err(DecodeError::InvalidSecretKeyRange)
@@ -301,11 +304,16 @@ mod tests {
     }
 
     #[test]
+    fn test_secret_key_as_bytes() {
+        let sk = SecretKey::random(&mut rand::thread_rng());
+        assert!(sk.as_bytes().len() == 32);
+    }
+
+    #[test]
     fn test_signature_verify_with_serialized_public_key() {
         let sk_bytes = vec![
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 78, 252, 122, 126, 32, 0, 75, 89, 252,
-            31, 42, 130, 254, 88, 6, 90, 138, 202, 135, 194, 233, 117, 181, 75, 96, 238, 79, 100,
-            237, 59, 140, 111,
+            78, 252, 122, 126, 32, 0, 75, 89, 252, 31, 42, 130, 254, 88, 6, 90, 138, 202, 135, 194,
+            233, 117, 181, 75, 96, 238, 79, 100, 237, 59, 140, 111,
         ];
         let sk = SecretKey::from_bytes(&sk_bytes).unwrap();
         let pk = PublicKey::from_secret_key(&sk);
