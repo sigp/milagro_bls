@@ -3,9 +3,8 @@ extern crate rand;
 extern crate zeroize;
 
 use self::zeroize::Zeroize;
-use super::amcl_utils::{self, Big, GroupG1, CURVE_ORDER, MODBYTES};
+use super::amcl_utils::{self, compress_g1, decompress_g1, Big, GroupG1, CURVE_ORDER, MODBYTES};
 use super::errors::DecodeError;
-use super::g1::G1Point;
 use amcl::hash256::HASH256;
 use rand::Rng;
 #[cfg(feature = "std")]
@@ -115,7 +114,7 @@ impl Drop for SecretKey {
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct PublicKey {
-    pub point: G1Point,
+    pub point: GroupG1,
 }
 
 impl PublicKey {
@@ -125,11 +124,11 @@ impl PublicKey {
             point: {
                 #[cfg(feature = "std")]
                 {
-                    G1Point::from_raw(amcl_utils::GENERATORG1.mul(sk.as_raw()))
+                    amcl_utils::GENERATORG1.mul(sk.as_raw())
                 }
                 #[cfg(not(feature = "std"))]
                 {
-                    G1Point::from_raw(amcl_utils::GroupG1::generator().mul(sk.as_raw()))
+                    amcl_utils::GroupG1::generator().mul(sk.as_raw())
                 }
             },
         }
@@ -137,20 +136,18 @@ impl PublicKey {
 
     /// Instantiate a PublicKey from some GroupG1 point.
     pub fn new_from_raw(pt: &GroupG1) -> Self {
-        PublicKey {
-            point: G1Point::from_raw(*pt),
-        }
+        PublicKey { point: pt.clone() }
     }
 
     /// Instantiate a PublicKey from compressed bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<PublicKey, DecodeError> {
-        let point = G1Point::from_bytes(bytes)?;
+        let point = decompress_g1(&bytes)?;
         Ok(Self { point })
     }
 
     /// Export the PublicKey to compressed bytes.
     pub fn as_bytes(&self) -> Vec<u8> {
-        self.point.as_bytes()
+        compress_g1(&self.point)
     }
 
     /// Export the public key to uncompress (x, y) bytes
