@@ -76,7 +76,7 @@ impl SecretKey {
 
     /// Export the SecretKey to bytes.
     pub fn as_bytes(&self) -> Vec<u8> {
-        let temp = Big::new_copy(&self.x);
+        let temp = self.x.clone();
         let mut bytes: [u8; MODBYTES] = [0; MODBYTES];
         temp.tobytes(&mut bytes);
         bytes.to_vec()
@@ -90,9 +90,7 @@ impl SecretKey {
 #[cfg(feature = "std")]
 impl fmt::Debug for SecretKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut temp = Big::new();
-        temp.copy(&self.x);
-        write!(f, "{}", temp.tostring())
+        write!(f, "{}", self.x.tostring())
     }
 }
 

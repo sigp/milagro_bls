@@ -253,7 +253,7 @@ pub fn decompress_g2(g2_bytes: &[u8]) -> Result<GroupG2, DecodeError> {
     if x_imaginary > m || x_real > m {
         return Err(DecodeError::BadPoint);
     }
-    let x = FP2::new_bigs(&x_real, &x_imaginary);
+    let x = FP2::new_bigs(x_real, x_imaginary);
 
     // Convert to GroupG1 point using big and sign
     let point = GroupG2::new_fp2(&x);
