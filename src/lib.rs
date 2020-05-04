@@ -38,5 +38,5 @@ use self::amcl::bls381g2 as BLSCurve;
 pub use aggregates::{AggregatePublicKey, AggregateSignature};
 pub use amcl_utils::{compress_g2, decompress_g2, hash_to_curve_g2};
 pub use errors::DecodeError;
-pub use keys::{Keypair, PublicKey, SecretKey};
+pub use keys::{Keypair, PublicKey, SecretKey, SECRET_KEY_BYTES};
 pub use signature::Signature;
