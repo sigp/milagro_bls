@@ -16,8 +16,7 @@ impl Signature {
     /// Instantiate a new Signature from a message and a SecretKey.
     pub fn new(msg: &[u8], sk: &SecretKey) -> Self {
         let hash_point = hash_to_curve_g2(msg);
-        let mut sig = g2mul(&hash_point, sk.as_raw());
-        sig.affine();
+        let sig = g2mul(&hash_point, sk.as_raw());
         Self { point: sig }
     }
 

@@ -137,7 +137,6 @@ impl AggregateSignature {
         for sig in signatures {
             aggregate_signature.point.add(&sig.point);
         }
-        aggregate_signature.point.affine();
         aggregate_signature
     }
 
