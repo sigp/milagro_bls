@@ -1,10 +1,9 @@
 extern crate amcl;
 
 use super::amcl_utils::{
-    self, ate2_evaluation, compress_g2, decompress_g2, hash_to_curve_g2, subgroup_check_g1,
-    subgroup_check_g2, GroupG2,
+    self, ate2_evaluation, compress_g2, decompress_g2, g2mul, hash_to_curve_g2, subgroup_check_g1,
+    subgroup_check_g2, AmclError, GroupG2, G2_BYTES,
 };
-use super::errors::DecodeError;
 use super::keys::{PublicKey, SecretKey};
 
 #[derive(Clone, PartialEq, Eq)]
@@ -17,7 +16,7 @@ impl Signature {
     /// Instantiate a new Signature from a message and a SecretKey.
     pub fn new(msg: &[u8], sk: &SecretKey) -> Self {
         let hash_point = hash_to_curve_g2(msg);
-        let mut sig = hash_point.mul(sk.as_raw());
+        let mut sig = g2mul(&hash_point, sk.as_raw());
         sig.affine();
         Self { point: sig }
     }
@@ -47,13 +46,13 @@ impl Signature {
     }
 
     /// Instantiate a Signature from compressed bytes.
-    pub fn from_bytes(bytes: &[u8]) -> Result<Signature, DecodeError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Signature, AmclError> {
         let point = decompress_g2(&bytes)?;
         Ok(Self { point })
     }
 
     /// Compress the Signature as bytes.
-    pub fn as_bytes(&self) -> Vec<u8> {
+    pub fn as_bytes(&self) -> [u8; G2_BYTES] {
         compress_g2(&self.point)
     }
 }
@@ -87,7 +86,7 @@ mod tests {
              */
             let sig_bytes = sig.as_bytes();
             let new_sig = Signature::from_bytes(&sig_bytes).unwrap();
-            assert_eq!(&sig.as_bytes(), &new_sig.as_bytes());
+            assert_eq!(&sig.as_bytes().to_vec(), &new_sig.as_bytes().to_vec());
             assert!(new_sig.verify(&bytes, &vk));
         }
     }

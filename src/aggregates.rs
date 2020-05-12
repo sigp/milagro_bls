@@ -2,11 +2,10 @@ extern crate amcl;
 extern crate rand;
 
 use super::amcl_utils::{
-    self, ate2_evaluation, compress_g1, compress_g2, decompress_g1, decompress_g2,
-    hash_to_curve_g2, pair, subgroup_check_g1, subgroup_check_g2, Big, GroupG1, GroupG2,
-    G1_BYTE_SIZE,
+    self, ate2_evaluation, compress_g1, compress_g2, decompress_g1, decompress_g2, g1mul, g2mul,
+    hash_to_curve_g2, pair, subgroup_check_g1, subgroup_check_g2, AmclError, Big, GroupG1, GroupG2,
+    G1_BYTES, G2_BYTES,
 };
-use super::errors::DecodeError;
 use super::keys::PublicKey;
 use super::signature::Signature;
 use rand::Rng;
@@ -67,7 +66,7 @@ impl AggregatePublicKey {
     }
 
     /// Instantiate an AggregatePublicKey from compressed bytes.
-    pub fn from_bytes(bytes: &[u8]) -> Result<AggregatePublicKey, DecodeError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<AggregatePublicKey, AmclError> {
         // Handle the case where all bytes are 0.
         let mut is_empty = true;
         for byte in bytes {
@@ -76,7 +75,7 @@ impl AggregatePublicKey {
                 break;
             }
         }
-        if is_empty && bytes.len() == G1_BYTE_SIZE / 2 {
+        if is_empty && bytes.len() == G1_BYTES {
             return Ok(Self {
                 point: GroupG1::new(),
                 is_empty,
@@ -92,9 +91,9 @@ impl AggregatePublicKey {
     }
 
     /// Export the AggregatePublicKey to compressed bytes.
-    pub fn as_bytes(&self) -> Vec<u8> {
+    pub fn as_bytes(&self) -> [u8; G1_BYTES] {
         if self.is_empty {
-            return vec![0; G1_BYTE_SIZE / 2];
+            return [0; G1_BYTES];
         }
         compress_g1(&self.point)
     }
@@ -165,23 +164,11 @@ impl AggregateSignature {
     /// AggregateVerify
     ///
     /// Verifies an AggregateSignature against a list of Messages and PublicKeys
-    /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.1.1
+    /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.3
     pub fn aggregate_verify(&self, msgs: &[&[u8]], public_keys: &[&PublicKey]) -> bool {
         // Require same number of messages as PublicKeys and >=1 PublicKeys.
         if msgs.len() != public_keys.len() || public_keys.len() == 0 {
             return false;
-        }
-
-        // Verify messages are unique
-        for (i, msg1) in msgs.iter().enumerate() {
-            for (j, msg2) in msgs.iter().enumerate() {
-                if i == j {
-                    continue;
-                }
-                if msg1 == msg2 {
-                    return false;
-                }
-            }
         }
 
         // Subgroup check for signature
@@ -334,7 +321,7 @@ impl AggregateSignature {
             let mut msg_hash = hash_to_curve_g2(message);
 
             // rand[i] * Apk[i]
-            let mut aggregate_public_key = aggregate_public_key.point.mul(&rand);
+            let mut aggregate_public_key = g1mul(&aggregate_public_key.point, &rand);
 
             // Points must be affine before pairings
             msg_hash.affine();
@@ -344,7 +331,7 @@ impl AggregateSignature {
             pair::another(&mut pairing, &msg_hash, &aggregate_public_key);
 
             // S' += rand[i] * AggregateSignature[i]
-            final_agg_sig.add(&aggregate_signature.point.mul(&rand));
+            final_agg_sig.add(&g2mul(&aggregate_signature.point, &rand));
         }
 
         // Pairing for LHS - e(As', G1)
@@ -360,13 +347,13 @@ impl AggregateSignature {
     }
 
     /// Instatiate an AggregateSignature from some bytes.
-    pub fn from_bytes(bytes: &[u8]) -> Result<AggregateSignature, DecodeError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<AggregateSignature, AmclError> {
         let point = decompress_g2(&bytes)?;
         Ok(Self { point })
     }
 
     /// Export (serialize) the AggregateSignature to bytes.
-    pub fn as_bytes(&self) -> Vec<u8> {
+    pub fn as_bytes(&self) -> [u8; G2_BYTES] {
         compress_g2(&self.point)
     }
 }
@@ -427,14 +414,14 @@ mod tests {
 
     #[test]
     fn test_empty_aggregate_public_key_serialization() {
-        let empty_bytes = vec![0; 48];
+        let empty_bytes = vec![0; G1_BYTES];
         let agg_pub_key = AggregatePublicKey::new();
 
         // Decoding to bytes
         let decoded_empty_bytes = agg_pub_key.as_bytes();
         assert_eq!(empty_bytes.len(), decoded_empty_bytes.len());
-        for byte in decoded_empty_bytes {
-            assert_eq!(byte, 0);
+        for byte in decoded_empty_bytes.iter() {
+            assert_eq!(*byte, 0);
         }
 
         // Encoding from bytes
@@ -958,7 +945,7 @@ mod tests {
         let public_keys_refs: Vec<&PublicKey> = public_keys.iter().map(|x| x).collect();
 
         // Verification should be false due to repeated message
-        assert!(!aggregate_signature.aggregate_verify(&msgs_refs, &public_keys_refs));
+        assert!(aggregate_signature.aggregate_verify(&msgs_refs, &public_keys_refs));
     }
 
     #[test]

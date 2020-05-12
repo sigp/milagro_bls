@@ -3,20 +3,24 @@ extern crate rand;
 extern crate zeroize;
 
 use self::zeroize::Zeroize;
-use super::amcl_utils::{self, compress_g1, decompress_g1, Big, GroupG1, CURVE_ORDER, MODBYTES};
-use super::errors::DecodeError;
+use super::amcl_utils::{
+    self, compress_g1, decompress_g1, g1mul, AmclError, Big, GroupG1, CURVE_ORDER, G1_BYTES,
+    SECRET_KEY_BYTES,
+};
+
 use amcl::hash256::HASH256;
 use rand::Rng;
 #[cfg(feature = "std")]
 use std::fmt;
+use BLSCurve::bls381::utils::{
+    deserialize_g1, secret_key_from_bytes, secret_key_to_bytes, serialize_uncompressed_g1,
+};
 
 // Key Generation Constants
 /// Domain for key generation.
 pub const KEY_SALT: &[u8] = b"BLS-SIG-KEYGEN-SALT-";
 /// L = ceil((3 * ceil(log2(r))) / 16) = 48.
 pub const L: u8 = 48;
-/// The required number of bytes for a `SecretKey`
-pub const SECRET_KEY_BYTES: usize = 32;
 
 /// A BLS secret key.
 #[derive(Clone)]
@@ -55,31 +59,15 @@ impl SecretKey {
     }
 
     /// Instantiate a SecretKey from existing bytes.
-    pub fn from_bytes(input: &[u8]) -> Result<SecretKey, DecodeError> {
-        // Require input 32 bytes.
-        if input.len() != SECRET_KEY_BYTES {
-            return Err(DecodeError::IncorrectSize);
-        }
-
-        // Prepend to MODBYTES in length
-        let mut bytes = vec![0u8; MODBYTES - input.len()];
-        bytes.extend_from_slice(input);
-
-        // Ensure secret key is in the range [0, r-1].
-        let sk = Big::frombytes(&bytes);
-        if sk >= Big::new_ints(&CURVE_ORDER) {
-            return Err(DecodeError::InvalidSecretKeyRange);
-        }
-
-        Ok(SecretKey { x: sk })
+    pub fn from_bytes(input: &[u8]) -> Result<SecretKey, AmclError> {
+        Ok(Self {
+            x: secret_key_from_bytes(input)?,
+        })
     }
 
     /// Export the SecretKey as 32 bytes.
-    pub fn as_bytes(&self) -> Vec<u8> {
-        let temp = self.x.clone();
-        let mut bytes: [u8; MODBYTES] = [0; MODBYTES];
-        temp.tobytes(&mut bytes);
-        bytes[MODBYTES - SECRET_KEY_BYTES..].to_vec()
+    pub fn as_bytes(&self) -> [u8; SECRET_KEY_BYTES] {
+        secret_key_to_bytes(&self.x)
     }
 
     pub fn as_raw(&self) -> &Big {
@@ -122,11 +110,11 @@ impl PublicKey {
             point: {
                 #[cfg(feature = "std")]
                 {
-                    amcl_utils::GENERATORG1.mul(sk.as_raw())
+                    g1mul(&amcl_utils::GENERATORG1, sk.as_raw())
                 }
                 #[cfg(not(feature = "std"))]
                 {
-                    amcl_utils::GroupG1::generator().mul(sk.as_raw())
+                    g1mul(&amcl_utils::GroupG1::generator(), sk.as_raw())
                 }
             },
         }
@@ -138,58 +126,29 @@ impl PublicKey {
     }
 
     /// Instantiate a PublicKey from compressed bytes.
-    pub fn from_bytes(bytes: &[u8]) -> Result<PublicKey, DecodeError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<PublicKey, AmclError> {
         let point = decompress_g1(&bytes)?;
         Ok(Self { point })
     }
 
     /// Export the PublicKey to compressed bytes.
-    pub fn as_bytes(&self) -> Vec<u8> {
+    pub fn as_bytes(&self) -> [u8; G1_BYTES] {
         compress_g1(&self.point)
     }
 
     /// Export the public key to uncompress (x, y) bytes
-    pub fn as_uncompressed_bytes(&mut self) -> Vec<u8> {
-        if self.point.is_infinity() {
-            return vec![0; 96];
-        }
-
-        let mut result: Vec<u8> = vec![];
-        let mut bytes = [0 as u8; 48];
-        self.point.getx().tobytes(&mut bytes);
-        result.extend_from_slice(&bytes);
-        self.point.gety().tobytes(&mut bytes);
-        result.extend_from_slice(&bytes);
-        result
+    pub fn as_uncompressed_bytes(&mut self) -> [u8; G1_BYTES * 2] {
+        serialize_uncompressed_g1(&self.point)
     }
 
     /// InstantiatePublicKey from uncompress (x, y) bytes
-    pub fn from_uncompressed_bytes(bytes: &[u8]) -> Result<PublicKey, DecodeError> {
-        if bytes.len() != 96 {
-            return Err(DecodeError::IncorrectSize);
+    pub fn from_uncompressed_bytes(bytes: &[u8]) -> Result<PublicKey, AmclError> {
+        if bytes.len() != G1_BYTES * 2 {
+            return Err(AmclError::InvalidG1Size);
         }
-
-        let mut nil = true;
-        for byte in bytes {
-            if *byte != 0 {
-                nil = false;
-                break;
-            }
-        }
-        if nil {
-            // Point is infinity
-            return Ok(PublicKey::new_from_raw(&GroupG1::new()));
-        }
-
-        let x_big = Big::frombytes(&bytes[0..48]);
-        let y_big = Big::frombytes(&bytes[48..]);
-        let point = GroupG1::new_bigs(&x_big, &y_big);
-
-        if point.is_infinity() {
-            return Err(DecodeError::BadPoint);
-        }
-
-        Ok(PublicKey::new_from_raw(&point))
+        Ok(Self {
+            point: deserialize_g1(bytes)?,
+        })
     }
 }
 
@@ -225,7 +184,7 @@ mod tests {
             233, 117, 181, 75, 96, 238, 79, 100, 237, 59, 140, 111,
         ];
         let sk = SecretKey::from_bytes(&sk_bytes).unwrap();
-        let decoded_sk = sk.as_bytes();
+        let decoded_sk = sk.as_bytes().to_vec();
         assert_eq!(decoded_sk, sk_bytes);
     }
 
@@ -234,9 +193,9 @@ mod tests {
         for _ in 0..30 {
             let sk = SecretKey::random(&mut rand::thread_rng());
             let pk = PublicKey::from_secret_key(&sk);
-            let decoded_pk = pk.as_bytes();
+            let decoded_pk = pk.as_bytes().to_vec();
             let encoded_pk = PublicKey::from_bytes(&decoded_pk).unwrap();
-            let re_recoded_pk = encoded_pk.as_bytes();
+            let re_recoded_pk = encoded_pk.as_bytes().to_vec();
             assert_eq!(decoded_pk, re_recoded_pk);
         }
     }
@@ -246,9 +205,9 @@ mod tests {
         for _ in 0..30 {
             let sk = SecretKey::random(&mut rand::thread_rng());
             let mut pk = PublicKey::from_secret_key(&sk);
-            let decoded_pk = pk.as_uncompressed_bytes();
+            let decoded_pk = pk.as_uncompressed_bytes().to_vec();
             let mut encoded_pk = PublicKey::from_uncompressed_bytes(&decoded_pk).unwrap();
-            let re_recoded_pk = encoded_pk.as_uncompressed_bytes();
+            let re_recoded_pk = encoded_pk.as_uncompressed_bytes().to_vec().to_vec();
             assert_eq!(decoded_pk, re_recoded_pk);
         }
     }
@@ -256,7 +215,7 @@ mod tests {
     #[test]
     fn test_public_key_uncompressed_serialization_infinity() {
         let mut pk = PublicKey::new_from_raw(&GroupG1::new());
-        let decoded_pk = pk.as_uncompressed_bytes();
+        let decoded_pk = pk.as_uncompressed_bytes().to_vec();
         let recoded_pk = PublicKey::from_uncompressed_bytes(&decoded_pk).unwrap();
         assert_eq!(recoded_pk, pk);
         assert!(recoded_pk.point.is_infinity())
@@ -267,25 +226,25 @@ mod tests {
         let bytes = vec![1; 1];
         assert_eq!(
             PublicKey::from_uncompressed_bytes(&bytes),
-            Err(DecodeError::IncorrectSize)
+            Err(AmclError::InvalidG1Size)
         );
 
         let bytes = vec![1; 95];
         assert_eq!(
             PublicKey::from_uncompressed_bytes(&bytes),
-            Err(DecodeError::IncorrectSize)
+            Err(AmclError::InvalidG1Size)
         );
 
         let bytes = vec![1; 97];
         assert_eq!(
             PublicKey::from_uncompressed_bytes(&bytes),
-            Err(DecodeError::IncorrectSize)
+            Err(AmclError::InvalidG1Size)
         );
 
         let bytes = vec![];
         assert_eq!(
             PublicKey::from_uncompressed_bytes(&bytes),
-            Err(DecodeError::IncorrectSize)
+            Err(AmclError::InvalidG1Size)
         );
     }
 
@@ -297,7 +256,7 @@ mod tests {
         bytes[95] = 1;
         assert_eq!(
             PublicKey::from_uncompressed_bytes(&bytes),
-            Err(DecodeError::BadPoint)
+            Err(AmclError::InvalidPoint)
         );
     }
 
@@ -306,13 +265,13 @@ mod tests {
         let bytes = vec![];
         assert_eq!(
             SecretKey::from_bytes(&bytes),
-            Err(DecodeError::IncorrectSize)
+            Err(AmclError::InvalidSecretKeySize)
         );
 
         let bytes = vec![1; 33];
         assert_eq!(
             SecretKey::from_bytes(&bytes),
-            Err(DecodeError::IncorrectSize)
+            Err(AmclError::InvalidSecretKeySize)
         );
 
         let bytes = vec![0; 32];
@@ -321,7 +280,7 @@ mod tests {
         let bytes = vec![255; 32];
         assert_eq!(
             SecretKey::from_bytes(&bytes),
-            Err(DecodeError::InvalidSecretKeyRange)
+            Err(AmclError::InvalidSecretKeyRange)
         );
     }
 
@@ -344,7 +303,7 @@ mod tests {
         let signature = Signature::new(&message, &sk);
         assert!(signature.verify(&message, &pk));
 
-        let pk_bytes = pk.as_bytes();
+        let pk_bytes = pk.as_bytes().to_vec();
         let pk = PublicKey::from_bytes(&pk_bytes).unwrap();
         assert!(signature.verify(&message, &pk));
     }

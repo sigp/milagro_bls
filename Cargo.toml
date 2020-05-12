@@ -10,7 +10,7 @@ name = "bls381_benches"
 harness = false
 
 [dependencies]
-amcl = { path = "./incubator-milagro-crypto-rust", default-features = false, features = ["bls381g2"]}
+amcl = { path = "./incubator-milagro-crypto-rust", default-features = false, features = ["bls381"]}
 hex = { version = "0.4.0", optional = true }
 lazy_static = { version = "1.4.0", optional = true }
 rand = { version = "0.7.2", default-features = false }
