@@ -2,15 +2,12 @@ extern crate amcl;
 extern crate rand;
 
 use super::amcl_utils::{
-    self, ate2_evaluation, hash_to_curve_g2, subgroup_check_g1, subgroup_check_g2, Big, GroupG1,
-    GroupG2,
+    self, ate2_evaluation, compress_g1, compress_g2, decompress_g1, decompress_g2, g1mul, g2mul,
+    hash_to_curve_g2, pair, subgroup_check_g1, subgroup_check_g2, AmclError, Big, GroupG1, GroupG2,
+    G1_BYTES, G2_BYTES,
 };
-use super::errors::DecodeError;
-use super::g1::G1Point;
-use super::g2::G2Point;
 use super::keys::PublicKey;
 use super::signature::Signature;
-use amcl::bls381::pair;
 use rand::Rng;
 
 /// Allows for the adding/combining of multiple BLS PublicKeys.
@@ -19,7 +16,8 @@ use rand::Rng;
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct AggregatePublicKey {
-    pub point: G1Point,
+    pub point: GroupG1,
+    is_empty: bool,
 }
 
 impl AggregatePublicKey {
@@ -28,7 +26,8 @@ impl AggregatePublicKey {
     /// The underlying point will be set to infinity.
     pub fn new() -> Self {
         Self {
-            point: G1Point::new(),
+            point: GroupG1::new(),
+            is_empty: true,
         }
     }
 
@@ -36,7 +35,10 @@ impl AggregatePublicKey {
     ///
     /// This is a helper method combining the `new()` and `add()` functions.
     pub fn aggregate(keys: &[&PublicKey]) -> Self {
-        let mut agg_key = AggregatePublicKey::new();
+        let mut agg_key = Self {
+            point: GroupG1::new(),
+            is_empty: keys.len() == 0,
+        };
         for key in keys {
             agg_key.point.add(&key.point)
         }
@@ -47,28 +49,58 @@ impl AggregatePublicKey {
     pub fn from_public_key(key: &PublicKey) -> Self {
         AggregatePublicKey {
             point: key.point.clone(),
+            is_empty: false,
         }
     }
 
     /// Add a PublicKey to the AggregatePublicKey.
     pub fn add(&mut self, public_key: &PublicKey) {
         self.point.add(&public_key.point);
+        self.is_empty = false;
     }
 
     /// Add a AggregatePublicKey to the AggregatePublicKey.
     pub fn add_aggregate(&mut self, aggregate_public_key: &AggregatePublicKey) {
         self.point.add(&aggregate_public_key.point);
+        self.is_empty = self.is_empty && aggregate_public_key.is_empty;
     }
 
     /// Instantiate an AggregatePublicKey from compressed bytes.
-    pub fn from_bytes(bytes: &[u8]) -> Result<AggregatePublicKey, DecodeError> {
-        let point = G1Point::from_bytes(bytes)?;
-        Ok(Self { point })
+    pub fn from_bytes(bytes: &[u8]) -> Result<AggregatePublicKey, AmclError> {
+        // Handle the case where all bytes are 0.
+        let mut is_empty = true;
+        for byte in bytes {
+            if *byte != 0 {
+                is_empty = false;
+                break;
+            }
+        }
+        if is_empty && bytes.len() == G1_BYTES {
+            return Ok(Self {
+                point: GroupG1::new(),
+                is_empty,
+            });
+        }
+
+        // Non empty bytes
+        let point = decompress_g1(&bytes)?;
+        Ok(Self {
+            point,
+            is_empty: false,
+        })
     }
 
     /// Export the AggregatePublicKey to compressed bytes.
-    pub fn as_bytes(&self) -> Vec<u8> {
-        self.point.as_bytes()
+    pub fn as_bytes(&self) -> [u8; G1_BYTES] {
+        if self.is_empty {
+            return [0; G1_BYTES];
+        }
+        compress_g1(&self.point)
+    }
+
+    /// Returns true if any PublicKeys have been added.
+    pub fn is_empty(&self) -> bool {
+        self.is_empty
     }
 }
 
@@ -84,7 +116,7 @@ impl Default for AggregatePublicKey {
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct AggregateSignature {
-    pub point: G2Point,
+    pub point: GroupG2,
 }
 
 impl AggregateSignature {
@@ -93,7 +125,7 @@ impl AggregateSignature {
     /// The underlying point will be set to infinity.
     pub fn new() -> Self {
         Self {
-            point: G2Point::new(),
+            point: GroupG2::new(),
         }
     }
 
@@ -103,9 +135,8 @@ impl AggregateSignature {
     pub fn aggregate(signatures: &[&Signature]) -> Self {
         let mut aggregate_signature = AggregateSignature::new();
         for sig in signatures {
-            aggregate_signature.point.add(&sig.point)
+            aggregate_signature.point.add(&sig.point);
         }
-        aggregate_signature.point.affine();
         aggregate_signature
     }
 
@@ -132,27 +163,15 @@ impl AggregateSignature {
     /// AggregateVerify
     ///
     /// Verifies an AggregateSignature against a list of Messages and PublicKeys
-    /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.1.1
+    /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.3
     pub fn aggregate_verify(&self, msgs: &[&[u8]], public_keys: &[&PublicKey]) -> bool {
-        // Require same number of messages as public keys
-        if msgs.len() != public_keys.len() {
+        // Require same number of messages as PublicKeys and >=1 PublicKeys.
+        if msgs.len() != public_keys.len() || public_keys.len() == 0 {
             return false;
         }
 
-        // Verify messages are unique
-        for (i, msg1) in msgs.iter().enumerate() {
-            for (j, msg2) in msgs.iter().enumerate() {
-                if i == j {
-                    continue;
-                }
-                if msg1 == msg2 {
-                    return false;
-                }
-            }
-        }
-
         // Subgroup check for signature
-        if !subgroup_check_g2(self.point.as_raw()) {
+        if !subgroup_check_g2(&self.point) {
             return false;
         }
 
@@ -161,7 +180,7 @@ impl AggregateSignature {
 
         for (i, pk) in public_keys.iter().enumerate() {
             // Subgroup check for public key
-            if !subgroup_check_g1(pk.point.as_raw()) {
+            if !subgroup_check_g1(&pk.point) {
                 return false;
             }
 
@@ -169,7 +188,7 @@ impl AggregateSignature {
             let mut msg_hash = hash_to_curve_g2(msgs[i]);
 
             // Points must be affine for pairing
-            let mut pk_affine = pk.point.as_raw().clone();
+            let mut pk_affine = pk.point.clone();
             pk_affine.affine();
             msg_hash.affine();
 
@@ -178,7 +197,7 @@ impl AggregateSignature {
         }
 
         // Affine for signature
-        let mut sig_point = self.point.as_raw().clone();
+        let mut sig_point = self.point.clone();
         let mut generator_g1_negative = amcl_utils::GroupG1::generator();
         sig_point.affine();
         generator_g1_negative.neg(); // already affine
@@ -197,8 +216,13 @@ impl AggregateSignature {
     /// Verifies an AggregateSignature against a list of PublicKeys
     /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.3.4
     pub fn fast_aggregate_verify(&self, msg: &[u8], public_keys: &[&PublicKey]) -> bool {
+        // Require at least one PublicKey
+        if public_keys.len() == 0 {
+            return false;
+        }
+
         // Subgroup check for signature
-        if !subgroup_check_g2(self.point.as_raw()) {
+        if !subgroup_check_g2(&self.point) {
             return false;
         }
 
@@ -209,8 +233,8 @@ impl AggregateSignature {
         let mut msg_hash = hash_to_curve_g2(msg);
 
         // Points must be affine for pairing
-        let mut sig_point = self.point.as_raw().clone();
-        let mut key_point = aggregate_public_key.point.as_raw().clone();
+        let mut sig_point = self.point.clone();
+        let mut key_point = aggregate_public_key.point.clone();
         sig_point.affine();
         key_point.affine();
         msg_hash.affine();
@@ -232,8 +256,13 @@ impl AggregateSignature {
         msg: &[u8],
         aggregate_public_key: &AggregatePublicKey,
     ) -> bool {
+        // Require at least one PublicKey added to the AggregatePublicKey
+        if aggregate_public_key.is_empty() {
+            return false;
+        }
+
         // Subgroup check for signature
-        if !subgroup_check_g2(self.point.as_raw()) {
+        if !subgroup_check_g2(&self.point) {
             return false;
         }
 
@@ -251,12 +280,7 @@ impl AggregateSignature {
         generator_g1_negative.neg(); // already affine
 
         // Faster ate2 evaualtion checks e(S, -G1) * e(H, PK) == 1
-        ate2_evaluation(
-            &sig_point.as_raw(),
-            &generator_g1_negative,
-            &msg_hash,
-            &key_point.as_raw(),
-        )
+        ate2_evaluation(&sig_point, &generator_g1_negative, &msg_hash, &key_point)
     }
 
     /// Verify Multiple AggregateSignatures
@@ -276,6 +300,11 @@ impl AggregateSignature {
         let mut pairing = pair::initmp();
 
         for (aggregate_signature, aggregate_public_key, message) in signature_sets {
+            // Require at least one PublicKey added to the AggregatePublicKey
+            if aggregate_public_key.is_empty() {
+                return false;
+            }
+
             // TODO: Consider increasing rand security from 2^63 to 2^128
             // Create random offset - rand[i]
             let mut rand = 0;
@@ -291,7 +320,7 @@ impl AggregateSignature {
             let mut msg_hash = hash_to_curve_g2(message);
 
             // rand[i] * Apk[i]
-            let mut aggregate_public_key = aggregate_public_key.point.as_raw().mul(&rand);
+            let mut aggregate_public_key = g1mul(&aggregate_public_key.point, &rand);
 
             // Points must be affine before pairings
             msg_hash.affine();
@@ -301,7 +330,7 @@ impl AggregateSignature {
             pair::another(&mut pairing, &msg_hash, &aggregate_public_key);
 
             // S' += rand[i] * AggregateSignature[i]
-            final_agg_sig.add(&aggregate_signature.point.as_raw().mul(&rand));
+            final_agg_sig.add(&g2mul(&aggregate_signature.point, &rand));
         }
 
         // Pairing for LHS - e(As', G1)
@@ -317,14 +346,14 @@ impl AggregateSignature {
     }
 
     /// Instatiate an AggregateSignature from some bytes.
-    pub fn from_bytes(bytes: &[u8]) -> Result<AggregateSignature, DecodeError> {
-        let point = G2Point::from_bytes(bytes)?;
+    pub fn from_bytes(bytes: &[u8]) -> Result<AggregateSignature, AmclError> {
+        let point = decompress_g2(&bytes)?;
         Ok(Self { point })
     }
 
     /// Export (serialize) the AggregateSignature to bytes.
-    pub fn as_bytes(&self) -> Vec<u8> {
-        self.point.as_bytes()
+    pub fn as_bytes(&self) -> [u8; G2_BYTES] {
+        compress_g2(&self.point)
     }
 }
 
@@ -380,6 +409,40 @@ mod tests {
         let agg_pub_key = AggregatePublicKey::from_bytes(&agg_pub_bytes).unwrap();
 
         assert!(agg_sig.fast_aggregate_verify_pre_aggregated(&message, &agg_pub_key));
+    }
+
+    #[test]
+    fn test_empty_aggregate_public_key_serialization() {
+        let empty_bytes = vec![0; G1_BYTES];
+        let agg_pub_key = AggregatePublicKey::new();
+
+        // Decoding to bytes
+        let decoded_empty_bytes = agg_pub_key.as_bytes();
+        assert_eq!(empty_bytes.len(), decoded_empty_bytes.len());
+        for byte in decoded_empty_bytes.iter() {
+            assert_eq!(*byte, 0);
+        }
+
+        // Encoding from bytes
+        let encoded_agg_pub_key = AggregatePublicKey::from_bytes(&empty_bytes).unwrap();
+        assert_eq!(encoded_agg_pub_key, agg_pub_key);
+    }
+
+    #[test]
+    fn test_empty_fast_aggregate_verify_pre_aggregated() {
+        let agg_pub_key = AggregatePublicKey::new();
+        let agg_sig = AggregateSignature::new();
+
+        // Empty AggregatePublicKey should fail
+        assert!(!agg_sig.fast_aggregate_verify_pre_aggregated(&[0; 32], &agg_pub_key));
+    }
+
+    #[test]
+    fn test_empty_fast_aggregate_verify() {
+        let agg_sig = AggregateSignature::new();
+
+        // Empty PublicKey array should fail
+        assert!(!agg_sig.fast_aggregate_verify(&[0; 32], &[]));
     }
 
     fn map_secret_bytes_to_keypairs(secret_key_bytes: Vec<Vec<u8>>) -> Vec<Keypair> {
@@ -730,13 +793,14 @@ mod tests {
             aggregate_public_keys_refs[i] = &aggregate_public_keys[i];
         }
 
-        let mega_iter = aggregate_signatures_refs
+        let signature_sets = aggregate_signatures_refs
             .into_iter()
             .zip(aggregate_public_keys_refs)
             .zip(msgs_refs.iter().map(|x| *x))
             .map(|((a, b), c)| (a, b, c));
 
-        let valid = AggregateSignature::verify_multiple_aggregate_signatures(&mut rng, mega_iter);
+        let valid =
+            AggregateSignature::verify_multiple_aggregate_signatures(&mut rng, signature_sets);
 
         assert!(valid);
     }
@@ -789,15 +853,41 @@ mod tests {
             aggregate_public_keys_refs[i] = &aggregate_public_keys[i];
         }
 
-        let mega_iter = aggregate_signatures_refs
+        let signature_sets = aggregate_signatures_refs
             .into_iter()
             .zip(aggregate_public_keys_refs)
             .zip(msgs_refs.iter().map(|x| *x))
             .map(|((a, b), c)| (a, b, c));
 
-        let valid = AggregateSignature::verify_multiple_aggregate_signatures(&mut rng, mega_iter);
+        let valid =
+            AggregateSignature::verify_multiple_aggregate_signatures(&mut rng, signature_sets);
 
         // Should verify as false due to bad secret key
+        assert!(!valid);
+    }
+
+    #[test]
+    pub fn test_verify_multiple_signatures_empty() {
+        let mut rng = &mut rand::thread_rng();
+        let msgs: Vec<Vec<u8>> = vec![vec![1u8; 32]; 1];
+        let aggregate_public_keys = vec![AggregatePublicKey::new()];
+        let aggregate_signatures = vec![AggregateSignature::new()];
+
+        // Create reference iterators
+        let msgs_refs: Vec<&[u8]> = vec![&msgs[0]];
+        let aggregate_public_keys_refs: Vec<&AggregatePublicKey> = vec![&aggregate_public_keys[0]];
+        let aggregate_signatures_refs: Vec<&AggregateSignature> = vec![&aggregate_signatures[0]];
+
+        let signature_sets = aggregate_signatures_refs
+            .into_iter()
+            .zip(aggregate_public_keys_refs)
+            .zip(msgs_refs.iter().map(|x| *x))
+            .map(|((a, b), c)| (a, b, c));
+
+        let valid =
+            AggregateSignature::verify_multiple_aggregate_signatures(&mut rng, signature_sets);
+
+        // Should verify as false due to empty AggregatePublicKey
         assert!(!valid);
     }
 
@@ -854,7 +944,7 @@ mod tests {
         let public_keys_refs: Vec<&PublicKey> = public_keys.iter().map(|x| x).collect();
 
         // Verification should be false due to repeated message
-        assert!(!aggregate_signature.aggregate_verify(&msgs_refs, &public_keys_refs));
+        assert!(aggregate_signature.aggregate_verify(&msgs_refs, &public_keys_refs));
     }
 
     #[test]
@@ -931,7 +1021,7 @@ mod tests {
         let mut point = GroupG1::generator();
         point = point.mul(&multiplier);
         let public_key = PublicKey {
-            point: G1Point::from_raw(point.clone()),
+            point: point.clone(),
         };
         let aggregate_public_key = AggregatePublicKey::from_public_key(&public_key);
 
@@ -943,9 +1033,7 @@ mod tests {
         let multiplier = Big::new_int(5);
         let mut point = GroupG2::generator();
         point = point.mul(&multiplier);
-        let signature = Signature {
-            point: G2Point::from_raw(point.clone()),
-        };
+        let signature = Signature { point };
         let aggregate_signature = AggregateSignature::from_signature(&signature);
 
         assert_eq!(signature.point, aggregate_signature.point);

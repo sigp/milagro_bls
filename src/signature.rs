@@ -1,27 +1,23 @@
 extern crate amcl;
 
 use super::amcl_utils::{
-    self, ate2_evaluation, hash_to_curve_g2, subgroup_check_g1, subgroup_check_g2,
+    self, ate2_evaluation, compress_g2, decompress_g2, g2mul, hash_to_curve_g2, subgroup_check_g1,
+    subgroup_check_g2, AmclError, GroupG2, G2_BYTES,
 };
-use super::errors::DecodeError;
-use super::g2::G2Point;
 use super::keys::{PublicKey, SecretKey};
 
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct Signature {
-    pub point: G2Point,
+    pub point: GroupG2,
 }
 
 impl Signature {
     /// Instantiate a new Signature from a message and a SecretKey.
     pub fn new(msg: &[u8], sk: &SecretKey) -> Self {
         let hash_point = hash_to_curve_g2(msg);
-        let mut sig = hash_point.mul(sk.as_raw());
-        sig.affine();
-        Self {
-            point: G2Point::from_raw(sig),
-        }
+        let sig = g2mul(&hash_point, sk.as_raw());
+        Self { point: sig }
     }
 
     /// CoreVerify
@@ -30,7 +26,7 @@ impl Signature {
     /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.3
     pub fn verify(&self, msg: &[u8], pk: &PublicKey) -> bool {
         // Subgroup checks
-        if !subgroup_check_g1(pk.point.as_raw()) || !subgroup_check_g2(self.point.as_raw()) {
+        if !subgroup_check_g1(&pk.point) || !subgroup_check_g2(&self.point) {
             return false;
         }
 
@@ -41,22 +37,22 @@ impl Signature {
         let mut generator_g1_negative = amcl_utils::GroupG1::generator();
         generator_g1_negative.neg();
         ate2_evaluation(
-            &self.point.as_raw(),
+            &self.point,
             &generator_g1_negative,
             &msg_hash_point,
-            &pk.point.as_raw(),
+            &pk.point,
         )
     }
 
     /// Instantiate a Signature from compressed bytes.
-    pub fn from_bytes(bytes: &[u8]) -> Result<Signature, DecodeError> {
-        let point = G2Point::from_bytes(bytes)?;
+    pub fn from_bytes(bytes: &[u8]) -> Result<Signature, AmclError> {
+        let point = decompress_g2(&bytes)?;
         Ok(Self { point })
     }
 
     /// Compress the Signature as bytes.
-    pub fn as_bytes(&self) -> Vec<u8> {
-        self.point.as_bytes()
+    pub fn as_bytes(&self) -> [u8; G2_BYTES] {
+        compress_g2(&self.point)
     }
 }
 
@@ -89,7 +85,7 @@ mod tests {
              */
             let sig_bytes = sig.as_bytes();
             let new_sig = Signature::from_bytes(&sig_bytes).unwrap();
-            assert_eq!(&sig.as_bytes(), &new_sig.as_bytes());
+            assert_eq!(&sig.as_bytes().to_vec(), &new_sig.as_bytes().to_vec());
             assert!(new_sig.verify(&bytes, &vk));
         }
     }

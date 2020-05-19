@@ -17,7 +17,10 @@ There has been no public audit or scrutiny placed upon this crate. If you're a
 cryptographer I would love to have your input.
 
 ## BLS Standard
-Progress towards the [BLS Standard](https://github.com/cfrg/draft-irtf-cfrg-bls-signature/) is being made on [this branch](https://github.com/sigp/milagro_bls/tree/eth2.0-v0.10)
+Current implementation of the BLS Standard aligns with [bls-signatures-v02](https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02)
+and [hash-to-curve-v07](https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-07).
+
+Note that 'bls-signatures-v02' references 'hash-to-curve-06' however we have implemented 'hash-to-curve-07'.
 
 ## Usage
 
@@ -28,7 +31,6 @@ serializing and de-serializing both public and secret keys.
 
 ```rust
 let sk_bytes = vec![
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	78, 252, 122, 126, 32, 0, 75, 89, 252, 31, 42,
 	130, 254, 88, 6, 90, 138, 202, 135, 194, 233,
 	117, 181, 75, 96, 238, 79, 100, 237, 59, 140, 111
@@ -72,12 +74,12 @@ both `AggregateSignatures` and `AggregatePublicKeys`.
 
 ```rust
 let signing_secret_key_bytes = vec![
-	vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 98,
-	161, 50, 32, 254, 87, 16, 25, 167, 79, 192, 116, 176, 74,
+	vec![
+	98, 161, 50, 32, 254, 87, 16, 25, 167, 79, 192, 116, 176, 74,
 	164, 217, 40, 57, 179, 15, 19, 21, 240, 100, 70, 127, 111,
 	170, 129, 137, 42, 53],
-	vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 53,
-	72, 211, 104, 184, 68, 142, 208, 115, 22, 156, 97, 28,
+	vec![
+	53, 72, 211, 104, 184, 68, 142, 208, 115, 22, 156, 97, 28,
 	216, 228, 102, 4, 218, 116, 226, 166, 131, 67, 7, 40, 55,
 	157, 167, 157, 127, 143, 13],
 ];
@@ -120,4 +122,3 @@ assert!(agg_sig.verify(&message, &agg_pub_key));
 ```
 cargo bench --features "bench"
 ```
-

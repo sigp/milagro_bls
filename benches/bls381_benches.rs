@@ -4,14 +4,8 @@ extern crate hex;
 extern crate milagro_bls;
 extern crate rand;
 
-use self::amcl::bls381 as BLSCurve;
 use criterion::{black_box, criterion_group, criterion_main, Benchmark, Criterion};
 use milagro_bls::*;
-use BLSCurve::big::BIG;
-use BLSCurve::ecp::ECP;
-
-pub type BigNum = BIG;
-pub type GroupG1 = ECP;
 
 fn compression_signature(c: &mut Criterion) {
     let compressed_g2 = hex::decode("a666d31d7e6561371644eb9ca7dbcb87257d8fd84a09e38a7a491ce0bbac64a324aa26385aebc99f47432970399a2ecb0def2d4be359640e6dae6438119cbdc4f18e5e4496c68a979473a72b72d3badf98464412e9d8f8d2ea9b31953bb24899").unwrap();
@@ -95,14 +89,13 @@ fn signing(c: &mut Criterion) {
     let pk = keypair.pk;
 
     let msg = "Some msg";
-    let domain = 42;
-    let sig = Signature::new(&msg.as_bytes(), domain, &sk);
+    let sig = Signature::new(&msg.as_bytes(), &sk);
 
     c.bench(
         "signing",
         Benchmark::new("Create a Signature", move |b| {
             b.iter(|| {
-                black_box(Signature::new(&msg.as_bytes(), domain, &sk));
+                black_box(Signature::new(&msg.as_bytes(), &sk));
             })
         })
         .sample_size(10),
@@ -112,7 +105,7 @@ fn signing(c: &mut Criterion) {
         "signing",
         Benchmark::new("Verify a Signature", move |b| {
             b.iter(|| {
-                black_box(sig.verify(&msg.as_bytes(), domain, &pk));
+                black_box(sig.verify(&msg.as_bytes(), &pk));
             })
         })
         .sample_size(10),
@@ -125,8 +118,7 @@ fn aggregation(c: &mut Criterion) {
     let pk = keypair.pk;
 
     let msg = "Some msg";
-    let domain = 42;
-    let sig = Signature::new(&msg.as_bytes(), domain, &sk);
+    let sig = Signature::new(&msg.as_bytes(), &sk);
 
     let mut aggregate_publickey = AggregatePublicKey::new();
     aggregate_publickey.add(&pk);
@@ -161,11 +153,10 @@ fn aggregate_verfication(c: &mut Criterion) {
     let mut pubkeys = vec![];
     let mut agg_sig = AggregateSignature::new();
     let msg = b"signed message";
-    let domain = 0;
 
     for _ in 0..n {
         let keypair = Keypair::random(&mut rand::thread_rng());
-        let sig = Signature::new(&msg[..], domain, &keypair.sk);
+        let sig = Signature::new(&msg[..], &keypair.sk);
         agg_sig.add(&sig);
         pubkeys.push(keypair.pk);
     }
@@ -177,8 +168,8 @@ fn aggregate_verfication(c: &mut Criterion) {
         Benchmark::new("Verifying aggregate of 128 signatures", move |b| {
             b.iter(|| {
                 let pubkeys_as_ref: Vec<&PublicKey> = pubkeys.iter().collect();
-                let agg_pub = AggregatePublicKey::from_public_keys(pubkeys_as_ref.as_slice());
-                let verified = agg_sig.verify(&msg[..], domain, &agg_pub);
+                let agg_pub = AggregatePublicKey::aggregate(pubkeys_as_ref.as_slice());
+                let verified = agg_sig.fast_aggregate_verify_pre_aggregated(&msg[..], &agg_pub);
                 assert!(verified);
             })
         })
@@ -186,134 +177,66 @@ fn aggregate_verfication(c: &mut Criterion) {
     );
 }
 
-fn aggregate_verfication_multiple_messages(c: &mut Criterion) {
-    let n = 128;
-
-    let mut pubkeys = vec![];
-    let mut agg_sig = AggregateSignature::new();
-
-    let msgs = vec![vec![0; 32], vec![1; 32]];
-
-    let domain = 0;
-
-    for i in 0..n {
-        let keypair = Keypair::random(&mut rand::thread_rng());
-
-        let msg = &msgs[i / (n / msgs.len())];
-
-        let sig = Signature::new(&msg[..], domain, &keypair.sk);
-        agg_sig.add(&sig);
-
-        pubkeys.push(keypair.pk);
-    }
-
-    c.bench(
-        "aggregation",
-        Benchmark::new(
-            "Verifying aggregate of 128 signatures with two distinct messages",
-            move |b| {
-                b.iter(|| {
-                    let mut agg_pubs = vec![AggregatePublicKey::new(); 2];
-
-                    for i in 0..n {
-                        agg_pubs[i / (n / msgs.len())].add(&pubkeys[i]);
-                    }
-                    let agg_pubs_refs: Vec<&AggregatePublicKey> = agg_pubs.iter().collect();
-                    let verified = agg_sig.verify_multiple(&msgs, domain, agg_pubs_refs.as_slice());
-
-                    assert!(verified);
-                })
-            },
-        )
-        .sample_size(100),
-    );
-}
-
 fn aggregate_verfication_multiple_signatures(c: &mut Criterion) {
-    let mut rng = rand::thread_rng();
-    let n = 10;
-    let m = 3;
-    let domains: Vec<u64> = vec![1; n];
-    let mut msgs: Vec<Vec<Vec<u8>>> = vec![vec![vec![]; m]; n];
-    let mut public_keys: Vec<Vec<G1Point>> = vec![vec![]; n];
+    let mut rng = &mut rand::thread_rng();
+    let n = 10; // Signatures
+    let m = 3; // PublicKeys per Signature
+    let mut msgs: Vec<Vec<u8>> = vec![vec![]; n];
+    let mut aggregate_public_keys: Vec<AggregatePublicKey> = vec![];
     let mut aggregate_signatures: Vec<AggregateSignature> = vec![];
+
+    let keypairs: Vec<Keypair> = (0..n * m).map(|_| Keypair::random(&mut rng)).collect();
 
     for i in 0..n {
         let mut aggregate_signature = AggregateSignature::new();
+        let mut aggregate_public_key = AggregatePublicKey::new();
+        msgs[i] = vec![i as u8; 32];
         for j in 0..m {
-            msgs[i][j] = vec![(j * i) as u8; 32];
-            let keypair = Keypair::random(&mut rng);
-            public_keys[i].push(keypair.pk.point);
+            let keypair = &keypairs[i * m + j];
+            let signature = Signature::new(&msgs[i], &keypair.sk);
 
-            let signature = Signature::new(&msgs[i][j], domains[i], &keypair.sk);
+            aggregate_public_key.add(&keypair.pk);
             aggregate_signature.add(&signature);
         }
+        aggregate_public_keys.push(aggregate_public_key);
         aggregate_signatures.push(aggregate_signature);
     }
+
+    // Remove mutability
+    let msgs: Vec<Vec<u8>> = msgs;
+    let aggregate_public_keys: Vec<AggregatePublicKey> = aggregate_public_keys;
+    let aggregate_signatures: Vec<AggregateSignature> = aggregate_signatures;
 
     c.bench(
         "multiple-signatures-verification-30",
         Benchmark::new(
             "Verification of multiple aggregate signatures with optimizations",
             move |b| {
-                let mega_iter = aggregate_signatures
-                    .iter()
-                    .cloned()
-                    .map(|agg_sig| agg_sig.point)
-                    .zip(public_keys.iter().cloned())
-                    .zip(msgs.iter().cloned())
-                    .zip(domains.iter().cloned())
-                    .map(|(((a, b), c), d)| (a, b, c, d));
                 b.iter(|| {
-                    assert!(AggregateSignature::verify_multiple_signatures(
+                    let mut rng = rand::thread_rng();
+                    // Create reference iterators
+                    let ref_vec = vec![1u8; 32];
+                    let ref_apk = AggregatePublicKey::new();
+                    let ref_as = AggregateSignature::new();
+                    let mut msgs_refs: Vec<&[u8]> = vec![&ref_vec; n];
+                    let mut aggregate_public_keys_refs: Vec<&AggregatePublicKey> =
+                        vec![&ref_apk; n];
+                    let mut aggregate_signatures_refs: Vec<&AggregateSignature> = vec![&ref_as; n];
+
+                    for i in 0..n {
+                        msgs_refs[i] = &msgs[i];
+                        aggregate_signatures_refs[i] = &aggregate_signatures[i];
+                        aggregate_public_keys_refs[i] = &aggregate_public_keys[i];
+                    }
+                    let signature_sets = aggregate_signatures_refs
+                        .into_iter()
+                        .zip(aggregate_public_keys_refs)
+                        .zip(msgs_refs.iter().map(|x| *x))
+                        .map(|((a, b), c)| (a, b, c));
+                    AggregateSignature::verify_multiple_aggregate_signatures(
                         &mut rng,
-                        mega_iter.clone()
-                    ));
-                })
-            },
-        )
-        .sample_size(10),
-    );
-
-    let mut rng = rand::thread_rng();
-    let n = 50;
-    let m = 5;
-    let domains: Vec<u64> = vec![1; n];
-    let mut msgs: Vec<Vec<Vec<u8>>> = vec![vec![vec![]; m]; n];
-    let mut public_keys: Vec<Vec<G1Point>> = vec![vec![]; n];
-    let mut aggregate_signatures: Vec<AggregateSignature> = vec![];
-
-    for i in 0..n {
-        let mut aggregate_signature = AggregateSignature::new();
-        for j in 0..m {
-            msgs[i][j] = vec![(j * i) as u8; 32];
-            let keypair = Keypair::random(&mut rng);
-            public_keys[i].push(keypair.pk.point);
-
-            let signature = Signature::new(&msgs[i][j], domains[i], &keypair.sk);
-            aggregate_signature.add(&signature);
-        }
-        aggregate_signatures.push(aggregate_signature);
-    }
-
-    c.bench(
-        "multiple-signatures-verification-250",
-        Benchmark::new(
-            "Verification of multiple aggregate signatures with optimizations",
-            move |b| {
-                let mega_iter = aggregate_signatures
-                    .iter()
-                    .cloned()
-                    .map(|agg_sig| agg_sig.point)
-                    .zip(public_keys.iter().cloned())
-                    .zip(msgs.iter().cloned())
-                    .zip(domains.iter().cloned())
-                    .map(|(((a, b), c), d)| (a, b, c, d));
-                b.iter(|| {
-                    assert!(AggregateSignature::verify_multiple_signatures(
-                        &mut rng,
-                        mega_iter.clone()
-                    ));
+                        signature_sets,
+                    );
                 })
             },
         )
@@ -335,8 +258,7 @@ fn key_generation(c: &mut Criterion) {
         "key generation",
         Benchmark::new("Generate keypair from known string", move |b| {
             b.iter(|| {
-                let secret = vec![42; 48];
-                let sk = SecretKey::from_bytes(&secret).unwrap();
+                let sk = SecretKey::random(&mut rand::thread_rng());
                 let pk = PublicKey::from_secret_key(&sk);
                 let keypair = Keypair { sk, pk };
                 black_box(keypair);
@@ -349,7 +271,6 @@ criterion_group!(
     benches,
     signing,
     aggregate_verfication_multiple_signatures,
-    aggregate_verfication_multiple_messages,
     aggregate_verfication,
     aggregation,
     compression_signature,
