@@ -103,4 +103,29 @@ mod tests {
         msg = "";
         assert_eq!(sig.verify(&msg.as_bytes(), &vk), false);
     }
+
+    #[test]
+    fn test_readme() {
+        // This is an exact replica of the README.md at the top level.
+        let sk_bytes = vec![
+            78, 252, 122, 126, 32, 0, 75, 89, 252, 31, 42, 130, 254, 88, 6, 90, 138, 202, 135, 194,
+            233, 117, 181, 75, 96, 238, 79, 100, 237, 59, 140, 111,
+        ];
+
+        // Load some keys from a serialized secret key.
+        let sk = SecretKey::from_bytes(&sk_bytes).unwrap();
+        let pk = PublicKey::from_secret_key(&sk);
+
+        // Sign a message
+        let message = "cats".as_bytes();
+        let signature = Signature::new(&message, &sk);
+        assert!(signature.verify(&message, &pk));
+
+        // Serialize then de-serialize, just 'cause we can.
+        let pk_bytes = pk.as_bytes();
+        let pk = PublicKey::from_bytes(&pk_bytes).unwrap();
+
+        // Verify the message
+        assert!(signature.verify(&message, &pk));
+    }
 }

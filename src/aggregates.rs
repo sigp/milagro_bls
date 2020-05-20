@@ -1038,4 +1038,50 @@ mod tests {
 
         assert_eq!(signature.point, aggregate_signature.point);
     }
+
+    #[test]
+    fn test_readme() {
+        // An exact replica of the README.md at the top level.
+        let signing_secret_key_bytes = vec![
+            vec![
+                98, 161, 50, 32, 254, 87, 16, 25, 167, 79, 192, 116, 176, 74, 164, 217, 40, 57,
+                179, 15, 19, 21, 240, 100, 70, 127, 111, 170, 129, 137, 42, 53,
+            ],
+            vec![
+                53, 72, 211, 104, 184, 68, 142, 208, 115, 22, 156, 97, 28, 216, 228, 102, 4, 218,
+                116, 226, 166, 131, 67, 7, 40, 55, 157, 167, 157, 127, 143, 13,
+            ],
+        ];
+
+        // Load the key pairs from our serialized secret keys,
+        let signing_keypairs: Vec<Keypair> = signing_secret_key_bytes
+            .iter()
+            .map(|bytes| {
+                let sk = SecretKey::from_bytes(&bytes).unwrap();
+                let pk = PublicKey::from_secret_key(&sk);
+                Keypair { sk, pk }
+            })
+            .collect();
+
+        let message = "cats".as_bytes();
+
+        // Create an aggregate signature over some message, also generating an
+        // aggregate public key at the same time.
+        let mut agg_sig = AggregateSignature::new();
+        let mut agg_pub_key = AggregatePublicKey::new();
+        for keypair in &signing_keypairs {
+            let sig = Signature::new(&message, &keypair.sk);
+            agg_sig.add(&sig);
+            agg_pub_key.add(&keypair.pk);
+        }
+
+        // Serialize and de-serialize the aggregates, just 'cause we can.
+        let agg_sig_bytes = agg_sig.as_bytes();
+        let agg_pub_bytes = agg_pub_key.as_bytes();
+        let agg_sig = AggregateSignature::from_bytes(&agg_sig_bytes).unwrap();
+        let agg_pub_key = AggregatePublicKey::from_bytes(&agg_pub_bytes).unwrap();
+
+        // Verify the AggregateSignature against the AggregatePublicKey
+        assert!(agg_sig.fast_aggregate_verify_pre_aggregated(&message, &agg_pub_key));
+    }
 }
