@@ -31,9 +31,8 @@ serializing and de-serializing both public and secret keys.
 
 ```rust
 let sk_bytes = vec![
-	78, 252, 122, 126, 32, 0, 75, 89, 252, 31, 42,
-	130, 254, 88, 6, 90, 138, 202, 135, 194, 233,
-	117, 181, 75, 96, 238, 79, 100, 237, 59, 140, 111
+	78, 252, 122, 126, 32, 0, 75, 89, 252, 31, 42, 130, 254, 88, 6, 90, 138, 202, 135, 194,
+	233, 117, 181, 75, 96, 238, 79, 100, 237, 59, 140, 111,
 ];
 
 // Load some keys from a serialized secret key.
@@ -58,7 +57,7 @@ entropy sources).
 
 ```rust
 // Generate a random key pair.
-let sk = SecretKey::random();
+let sk = SecretKey::random(&mut rand::thread_rng());
 let pk = PublicKey::from_secret_key(&sk);
 
 // Sign and verify a message.
@@ -73,15 +72,16 @@ Aggregate signatures and public keys. Supports serializing and de-serializing
 both `AggregateSignatures` and `AggregatePublicKeys`.
 
 ```rust
+// An exact replica of the README.md at the top level.
 let signing_secret_key_bytes = vec![
 	vec![
-	98, 161, 50, 32, 254, 87, 16, 25, 167, 79, 192, 116, 176, 74,
-	164, 217, 40, 57, 179, 15, 19, 21, 240, 100, 70, 127, 111,
-	170, 129, 137, 42, 53],
+		98, 161, 50, 32, 254, 87, 16, 25, 167, 79, 192, 116, 176, 74, 164, 217, 40, 57,
+		179, 15, 19, 21, 240, 100, 70, 127, 111, 170, 129, 137, 42, 53,
+	],
 	vec![
-	53, 72, 211, 104, 184, 68, 142, 208, 115, 22, 156, 97, 28,
-	216, 228, 102, 4, 218, 116, 226, 166, 131, 67, 7, 40, 55,
-	157, 167, 157, 127, 143, 13],
+		53, 72, 211, 104, 184, 68, 142, 208, 115, 22, 156, 97, 28, 216, 228, 102, 4, 218,
+		116, 226, 166, 131, 67, 7, 40, 55, 157, 167, 157, 127, 143, 13,
+	],
 ];
 
 // Load the key pairs from our serialized secret keys,
@@ -90,8 +90,9 @@ let signing_keypairs: Vec<Keypair> = signing_secret_key_bytes
 	.map(|bytes| {
 		let sk = SecretKey::from_bytes(&bytes).unwrap();
 		let pk = PublicKey::from_secret_key(&sk);
-		Keypair{ sk, pk }
-	}).collect();
+		Keypair { sk, pk }
+	})
+	.collect();
 
 let message = "cats".as_bytes();
 
@@ -108,13 +109,11 @@ for keypair in &signing_keypairs {
 // Serialize and de-serialize the aggregates, just 'cause we can.
 let agg_sig_bytes = agg_sig.as_bytes();
 let agg_pub_bytes = agg_pub_key.as_bytes();
-let agg_sig = AggregateSignature::
-	from_bytes(&agg_sig_bytes).unwrap();
-let agg_pub_key = AggregatePublicKey::
-	from_bytes(&agg_pub_bytes).unwrap();
+let agg_sig = AggregateSignature::from_bytes(&agg_sig_bytes).unwrap();
+let agg_pub_key = AggregatePublicKey::from_bytes(&agg_pub_bytes).unwrap();
 
-/// Verify the AggregateSignature against the AggregatePublicKey
-assert!(agg_sig.verify(&message, &agg_pub_key));
+// Verify the AggregateSignature against the AggregatePublicKey
+assert!(agg_sig.fast_aggregate_verify_pre_aggregated(&message, &agg_pub_key));
 ```
 
 ### How to Run Benchmarks

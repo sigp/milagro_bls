@@ -317,4 +317,17 @@ mod tests {
         let signature = Signature::new(&message, &sk);
         assert!(signature.verify(&message, &pk));
     }
+
+    #[test]
+    fn test_readme() {
+        // This is an exact replica of the README.md at the top level.
+        // Generate a random key pair.
+        let sk = SecretKey::random(&mut rand::thread_rng());
+        let pk = PublicKey::from_secret_key(&sk);
+
+        // Sign and verify a message.
+        let message = "cats".as_bytes();
+        let signature = Signature::new(&message, &sk);
+        assert!(signature.verify(&message, &pk));
+    }
 }
