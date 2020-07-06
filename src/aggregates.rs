@@ -15,9 +15,10 @@ use rand::Rng;
 /// This may be used to verify some AggregateSignature.
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Debug))]
+
 pub struct AggregatePublicKey {
     pub point: GroupG1,
-    is_empty: bool,
+    pub is_empty: bool,
 }
 
 impl AggregatePublicKey {
