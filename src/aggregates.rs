@@ -288,6 +288,7 @@ impl AggregateSignature {
     /// Input (AggregateSignature, PublicKey[m], Message(Vec<u8>))[n]
     /// Checks that each AggregateSignature is valid with a reduced number of pairings.
     /// https://ethresear.ch/t/fast-verification-of-multiple-bls-signatures/5407
+    /// Note: Assumes Proof of Possession of public keys.
     pub fn verify_multiple_aggregate_signatures<'a, R, I>(rng: &mut R, signature_sets: I) -> bool
     where
         R: Rng + ?Sized,
@@ -302,6 +303,11 @@ impl AggregateSignature {
         for (aggregate_signature, aggregate_public_key, message) in signature_sets {
             // Require at least one PublicKey added to the AggregatePublicKey
             if aggregate_public_key.is_empty() {
+                return false;
+            }
+
+            // Verify subgroup of each aggregate_signature
+            if !subgroup_check_g2(&aggregate_signature.point) {
                 return false;
             }
 
