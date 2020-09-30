@@ -40,21 +40,33 @@ impl SecretKey {
     /// Generate a new SecretKey based off Initial Keying Material (IKM) and key info.
     /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-2.3
     pub fn key_generate(ikm: &[u8], key_info: &[u8]) -> Self {
-        // PRK = HKDF-Extract("BLS-SIG-KEYGEN-SALT-", IKM || I2OSP(0, 1))
-        let mut prk = Vec::<u8>::with_capacity(1 + ikm.len());
-        prk.extend_from_slice(ikm);
-        prk.push(0);
-        let prk = HASH256::hkdf_extract(KEY_SALT, &prk);
+        let mut sk = Big::new();
 
-        // OKM = HKDF-Expand(PRK, key_info || I2OSP(L, 2), L)
-        let mut info = key_info.to_vec();
-        info.extend_from_slice(&[0, L]);
-        let okm = HASH256::hkdf_extend(&prk, &info, L);
+        let mut salt = KEY_SALT;
 
-        // SK = OS2IP(OKM) mod r
-        let r = Big::new_ints(&CURVE_ORDER);
-        let mut sk = Big::frombytes(&okm);
-        sk.rmod(&r);
+        while sk.iszilch() {
+            // salt = H(salt)
+            let mut hash256 = HASH256::new();
+            hash256.init();
+            hash256.process_array(&k);
+            salt = hash256.hash();
+
+            // PRK = HKDF-Extract(salt, IKM || I2OSP(0, 1))
+            let mut prk = Vec::<u8>::with_capacity(1 + ikm.len());
+            prk.extend_from_slice(ikm);
+            prk.push(0);
+            let prk = HASH256::hkdf_extract(&salt, &prk);
+
+            // OKM = HKDF-Expand(PRK, key_info || I2OSP(L, 2), L)
+            let mut info = key_info.to_vec();
+            info.extend_from_slice(&[0, L]);
+            let okm = HASH256::hkdf_extend(&prk, &info, L);
+
+            // SK = OS2IP(OKM) mod r
+            let r = Big::new_ints(&CURVE_ORDER);
+            let mut sk = Big::frombytes(&okm);
+            sk.rmod(&r);
+        }
         Self { x: sk }
     }
 
