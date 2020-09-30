@@ -3,8 +3,8 @@ extern crate rand;
 
 use super::amcl_utils::{
     self, ate2_evaluation, compress_g1, compress_g2, decompress_g1, decompress_g2, g1mul, g2mul,
-    hash_to_curve_g2, pair, subgroup_check_g1, subgroup_check_g2, AmclError, Big, GroupG1, GroupG2,
-    G1_BYTES, G2_BYTES,
+    hash_to_curve_g2, pair, subgroup_check_g2, AmclError, Big, GroupG1, GroupG2, G1_BYTES,
+    G2_BYTES,
 };
 use super::keys::PublicKey;
 use super::signature::Signature;
@@ -179,8 +179,8 @@ impl AggregateSignature {
         let mut pairing = pair::initmp();
 
         for (i, pk) in public_keys.iter().enumerate() {
-            // Subgroup check for public key
-            if !subgroup_check_g1(&pk.point) {
+            // Validate public key
+            if !pk.key_validate() {
                 return false;
             }
 
@@ -213,7 +213,8 @@ impl AggregateSignature {
 
     /// FastAggregateVerify
     ///
-    /// Verifies an AggregateSignature against a list of PublicKeys
+    /// Verifies an AggregateSignature against a list of PublicKeys.
+    /// PublicKeys must all be verified via Proof of Possession before running this function.
     /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.3.4
     pub fn fast_aggregate_verify(&self, msg: &[u8], public_keys: &[&PublicKey]) -> bool {
         // Require at least one PublicKey
@@ -249,6 +250,7 @@ impl AggregateSignature {
     /// FastAggregateVerify - pre-aggregated PublicKeys
     ///
     /// Verifies an AggregateSignature against an AggregatePublicKey.
+    /// PublicKeys should all be verified before being aggregated.
     /// Differs to IEFT FastAggregateVerify in that public keys are already aggregated.
     /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.3.4
     pub fn fast_aggregate_verify_pre_aggregated(

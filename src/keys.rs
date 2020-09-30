@@ -4,8 +4,8 @@ extern crate zeroize;
 
 use self::zeroize::Zeroize;
 use super::amcl_utils::{
-    self, compress_g1, decompress_g1, g1mul, AmclError, Big, GroupG1, CURVE_ORDER, G1_BYTES,
-    SECRET_KEY_BYTES,
+    self, compress_g1, decompress_g1, g1mul, subgroup_check_g1, AmclError, Big, GroupG1,
+    CURVE_ORDER, G1_BYTES, SECRET_KEY_BYTES,
 };
 
 use amcl::hash256::HASH256;
@@ -41,15 +41,14 @@ impl SecretKey {
     /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-2.3
     pub fn key_generate(ikm: &[u8], key_info: &[u8]) -> Self {
         let mut sk = Big::new();
-
-        let mut salt = KEY_SALT;
+        let mut salt = KEY_SALT.to_vec();
 
         while sk.iszilch() {
             // salt = H(salt)
             let mut hash256 = HASH256::new();
             hash256.init();
-            hash256.process_array(&k);
-            salt = hash256.hash();
+            hash256.process_array(&salt);
+            salt = hash256.hash().to_vec();
 
             // PRK = HKDF-Extract(salt, IKM || I2OSP(0, 1))
             let mut prk = Vec::<u8>::with_capacity(1 + ikm.len());
@@ -64,7 +63,7 @@ impl SecretKey {
 
             // SK = OS2IP(OKM) mod r
             let r = Big::new_ints(&CURVE_ORDER);
-            let mut sk = Big::frombytes(&okm);
+            sk = Big::frombytes(&okm);
             sk.rmod(&r);
         }
         Self { x: sk }
@@ -161,6 +160,17 @@ impl PublicKey {
         Ok(Self {
             point: deserialize_g1(bytes)?,
         })
+    }
+
+    /// KeyValidate
+    ///
+    /// Verifies a public key is valid
+    /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-04#section-2.5
+    pub fn key_validate(&self) -> bool {
+        if self.point.is_infinity() || !subgroup_check_g1(&self.point) {
+            return false;
+        }
+        true
     }
 }
 

@@ -1,8 +1,8 @@
 extern crate amcl;
 
 use super::amcl_utils::{
-    self, ate2_evaluation, compress_g2, decompress_g2, g2mul, hash_to_curve_g2, subgroup_check_g1,
-    subgroup_check_g2, AmclError, GroupG2, G2_BYTES,
+    self, ate2_evaluation, compress_g2, decompress_g2, g2mul, hash_to_curve_g2, subgroup_check_g2,
+    AmclError, GroupG2, G2_BYTES,
 };
 use super::keys::{PublicKey, SecretKey};
 
@@ -25,8 +25,12 @@ impl Signature {
     /// Verifies the Signature against a PublicKey.
     /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.3
     pub fn verify(&self, msg: &[u8], pk: &PublicKey) -> bool {
-        // Subgroup checks
-        if !subgroup_check_g1(&pk.point) || !subgroup_check_g2(&self.point) {
+        // Signature Subgroup checks
+        if !subgroup_check_g2(&self.point) {
+            return false;
+        }
+        // KeyValidate
+        if !pk.key_validate() {
             return false;
         }
 
