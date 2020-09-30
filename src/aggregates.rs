@@ -17,7 +17,7 @@ use rand::Rng;
 #[cfg_attr(feature = "std", derive(Debug))]
 pub struct AggregatePublicKey {
     pub point: GroupG1,
-    is_empty: bool,
+    pub is_empty: bool,
 }
 
 impl AggregatePublicKey {
