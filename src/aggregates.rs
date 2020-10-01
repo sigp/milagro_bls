@@ -34,6 +34,8 @@ impl AggregatePublicKey {
     /// Instantiate a new aggregate public key from a vector of PublicKeys.
     ///
     /// This is a helper method combining the `new()` and `add()` functions.
+    ///
+    /// Pre-requsites: All public keys must be PoP verified before calling this function.
     pub fn aggregate(keys: &[&PublicKey]) -> Self {
         let mut agg_key = Self {
             point: GroupG1::new(),
@@ -54,12 +56,16 @@ impl AggregatePublicKey {
     }
 
     /// Add a PublicKey to the AggregatePublicKey.
+    ///
+    /// Pre-requsites: Public keys must be PoP verified before calling this function.
     pub fn add(&mut self, public_key: &PublicKey) {
         self.point.add(&public_key.point);
         self.is_empty = false;
     }
 
     /// Add a AggregatePublicKey to the AggregatePublicKey.
+    ///
+    /// Pre-requsites: All public keys must be PoP verified before calling this function.
     pub fn add_aggregate(&mut self, aggregate_public_key: &AggregatePublicKey) {
         self.point.add(&aggregate_public_key.point);
         self.is_empty = self.is_empty && aggregate_public_key.is_empty;
