@@ -4,8 +4,8 @@ extern crate zeroize;
 
 use self::zeroize::Zeroize;
 use super::amcl_utils::{
-    self, compress_g1, decompress_g1, g1mul, AmclError, Big, GroupG1, CURVE_ORDER, G1_BYTES,
-    SECRET_KEY_BYTES,
+    self, compress_g1, decompress_g1, g1mul, subgroup_check_g1, AmclError, Big, GroupG1,
+    CURVE_ORDER, G1_BYTES, SECRET_KEY_BYTES,
 };
 
 use amcl::hash256::HASH256;
@@ -40,21 +40,32 @@ impl SecretKey {
     /// Generate a new SecretKey based off Initial Keying Material (IKM) and key info.
     /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-2.3
     pub fn key_generate(ikm: &[u8], key_info: &[u8]) -> Self {
-        // PRK = HKDF-Extract("BLS-SIG-KEYGEN-SALT-", IKM || I2OSP(0, 1))
-        let mut prk = Vec::<u8>::with_capacity(1 + ikm.len());
-        prk.extend_from_slice(ikm);
-        prk.push(0);
-        let prk = HASH256::hkdf_extract(KEY_SALT, &prk);
+        let mut sk = Big::new();
+        let mut salt = KEY_SALT.to_vec();
 
-        // OKM = HKDF-Expand(PRK, key_info || I2OSP(L, 2), L)
-        let mut info = key_info.to_vec();
-        info.extend_from_slice(&[0, L]);
-        let okm = HASH256::hkdf_extend(&prk, &info, L);
+        while sk.iszilch() {
+            // salt = H(salt)
+            let mut hash256 = HASH256::new();
+            hash256.init();
+            hash256.process_array(&salt);
+            salt = hash256.hash().to_vec();
 
-        // SK = OS2IP(OKM) mod r
-        let r = Big::new_ints(&CURVE_ORDER);
-        let mut sk = Big::frombytes(&okm);
-        sk.rmod(&r);
+            // PRK = HKDF-Extract(salt, IKM || I2OSP(0, 1))
+            let mut prk = Vec::<u8>::with_capacity(1 + ikm.len());
+            prk.extend_from_slice(ikm);
+            prk.push(0);
+            let prk = HASH256::hkdf_extract(&salt, &prk);
+
+            // OKM = HKDF-Expand(PRK, key_info || I2OSP(L, 2), L)
+            let mut info = key_info.to_vec();
+            info.extend_from_slice(&[0, L]);
+            let okm = HASH256::hkdf_extend(&prk, &info, L);
+
+            // SK = OS2IP(OKM) mod r
+            let r = Big::new_ints(&CURVE_ORDER);
+            sk = Big::frombytes(&okm);
+            sk.rmod(&r);
+        }
         Self { x: sk }
     }
 
@@ -149,6 +160,17 @@ impl PublicKey {
         Ok(Self {
             point: deserialize_g1(bytes)?,
         })
+    }
+
+    /// KeyValidate
+    ///
+    /// Verifies a public key is valid
+    /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-04#section-2.5
+    pub fn key_validate(&self) -> bool {
+        if self.point.is_infinity() || !subgroup_check_g1(&self.point) {
+            return false;
+        }
+        true
     }
 }
 
