@@ -233,6 +233,11 @@ impl AggregateSignature {
             return false;
         }
 
+        // Additional Check to ensure no infinity public keys
+        if public_keys.iter().any(|pk| pk.point.is_infinity()) {
+            return false;
+        }
+
         // Aggregate PublicKeys
         let aggregate_public_key = AggregatePublicKey::aggregate(public_keys);
 
@@ -256,7 +261,7 @@ impl AggregateSignature {
     /// FastAggregateVerify - pre-aggregated PublicKeys
     ///
     /// Verifies an AggregateSignature against an AggregatePublicKey.
-    /// PublicKeys should all be verified before being aggregated.
+    /// PublicKeys must all be verified before being aggregated.
     /// Differs to IEFT FastAggregateVerify in that public keys are already aggregated.
     /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.3.4
     pub fn fast_aggregate_verify_pre_aggregated(
