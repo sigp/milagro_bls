@@ -214,7 +214,7 @@ impl AggregateSignature {
         // Complete pairing and verify output is 1.
         let mut v = pair::miller(&pairing);
         v = pair::fexp(&v);
-        v.isunity()
+        v.is_unity()
     }
 
     /// FastAggregateVerify
@@ -356,7 +356,7 @@ impl AggregateSignature {
         // Complete pairing and verify output is 1.
         let mut v = pair::miller(&pairing);
         v = pair::fexp(&v);
-        v.isunity()
+        v.is_unity()
     }
 
     /// Instatiate an AggregateSignature from some bytes.

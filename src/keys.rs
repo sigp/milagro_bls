@@ -43,7 +43,7 @@ impl SecretKey {
         let mut sk = Big::new();
         let mut salt = KEY_SALT.to_vec();
 
-        while sk.iszilch() {
+        while sk.is_zilch() {
             // salt = H(salt)
             let mut hash256 = HASH256::new();
             hash256.init();
@@ -63,7 +63,7 @@ impl SecretKey {
 
             // SK = OS2IP(OKM) mod r
             let r = Big::new_ints(&CURVE_ORDER);
-            sk = Big::frombytes(&okm);
+            sk = Big::from_bytes(&okm);
             sk.rmod(&r);
         }
         Self { x: sk }
@@ -89,7 +89,7 @@ impl SecretKey {
 #[cfg(feature = "std")]
 impl fmt::Debug for SecretKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.x.tostring())
+        write!(f, "{}", self.x.to_string())
     }
 }
 
@@ -297,7 +297,10 @@ mod tests {
         );
 
         let bytes = vec![0; 32];
-        assert!(SecretKey::from_bytes(&bytes).is_ok());
+        assert_eq!(
+            SecretKey::from_bytes(&bytes),
+            Err(AmclError::InvalidSecretKeyRange)
+        );
 
         let bytes = vec![255; 32];
         assert_eq!(

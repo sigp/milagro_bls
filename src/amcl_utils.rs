@@ -103,7 +103,7 @@ mod tests {
         let mut point = GroupG1::new();
         let compressed = compress_g1(&mut point);
         let round_trip_point = decompress_g1(&compressed).unwrap();
-        assert_eq!(point.tostring(), round_trip_point.tostring());
+        assert_eq!(point.to_string(), round_trip_point.to_string());
     }
 
     #[test]
@@ -111,7 +111,7 @@ mod tests {
         let mut point = GroupG2::new();
         let compressed = compress_g2(&mut point);
         let round_trip_point = decompress_g2(&compressed).unwrap();
-        assert_eq!(point.tostring(), round_trip_point.tostring());
+        assert_eq!(point.to_string(), round_trip_point.to_string());
     }
 
     #[test]
