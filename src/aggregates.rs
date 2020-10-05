@@ -214,7 +214,7 @@ impl AggregateSignature {
         // Complete pairing and verify output is 1.
         let mut v = pair::miller(&pairing);
         v = pair::fexp(&v);
-        v.isunity()
+        v.is_unity()
     }
 
     /// FastAggregateVerify
@@ -230,6 +230,11 @@ impl AggregateSignature {
 
         // Subgroup check for signature
         if !subgroup_check_g2(&self.point) {
+            return false;
+        }
+
+        // Additional Check to ensure no infinity public keys
+        if public_keys.iter().any(|pk| pk.point.is_infinity()) {
             return false;
         }
 
@@ -256,7 +261,7 @@ impl AggregateSignature {
     /// FastAggregateVerify - pre-aggregated PublicKeys
     ///
     /// Verifies an AggregateSignature against an AggregatePublicKey.
-    /// PublicKeys should all be verified before being aggregated.
+    /// PublicKeys must all be verified before being aggregated.
     /// Differs to IEFT FastAggregateVerify in that public keys are already aggregated.
     /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.3.4
     pub fn fast_aggregate_verify_pre_aggregated(
@@ -356,7 +361,7 @@ impl AggregateSignature {
         // Complete pairing and verify output is 1.
         let mut v = pair::miller(&pairing);
         v = pair::fexp(&v);
-        v.isunity()
+        v.is_unity()
     }
 
     /// Instatiate an AggregateSignature from some bytes.
