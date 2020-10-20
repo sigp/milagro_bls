@@ -20,5 +20,9 @@ path = ".."
 members = ["."]
 
 [[bin]]
-name = "fuzz_serde_g2"
-path = "fuzz_targets/fuzz_serde_g2.rs"
+name = "fuzz_serde_public_key"
+path = "fuzz_targets/fuzz_serde_public_key.rs"
+
+[[bin]]
+name = "fuzz_serde_signature"
+path = "fuzz_targets/fuzz_serde_signature.rs"

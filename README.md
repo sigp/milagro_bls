@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/sigp/signature-schemes.svg?branch=master)](https://travis-ci.org/sigp/signature-schemes) [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/sigp/lighthouse?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
-**WARNING: This is an experiemental library and the cryptography is NOT SAFE!**
+**WARNING: This library is a work in progress and has not been audited. Do NOT consider the cryptography safe!**
 
 Uses the [The Apache Milagro Cryptographic Library](https://github.com/apache/incubator-milagro-crypto-rust).
 
@@ -16,11 +16,17 @@ rouge-key attack.
 There has been no public audit or scrutiny placed upon this crate. If you're a
 cryptographer I would love to have your input.
 
-## BLS Standard
-Current implementation of the BLS Standard aligns with [bls-signatures-v02](https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02)
-and [hash-to-curve-v07](https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-07).
+This library uses a Proof of Possession (PoP) variant as protection against rogue key attacks.
+A public key can be PoP verified by signing a hash of the public key. This must be done
+before a `PublicKey` may be used in any aggregate signatures.
 
-Note that 'bls-signatures-v02' references 'hash-to-curve-06' however we have implemented 'hash-to-curve-07'.
+Subgroup checks are performed for signatures during verification and public keys
+during deserialisation.
+
+## BLS Standard
+
+Current implementation of the BLS Standard aligns with [bls-signatures-v04](https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-04)
+and [hash-to-curve-v09](https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-09).
 
 ## Usage
 
@@ -52,7 +58,7 @@ let pk = PublicKey::from_bytes(&pk_bytes).unwrap();
 assert!(signature.verify(&message, &pk));
 ```
 
-Generate new "random" secret keys (see SecretKey docs for information on
+Generate new "random" secret keys (see `SecretKey` docs for information on
 entropy sources).
 
 ```rust
@@ -72,48 +78,47 @@ Aggregate signatures and public keys. Supports serializing and de-serializing
 both `AggregateSignatures` and `AggregatePublicKeys`.
 
 ```rust
-// An exact replica of the README.md at the top level.
 let signing_secret_key_bytes = vec![
-	vec![
-		98, 161, 50, 32, 254, 87, 16, 25, 167, 79, 192, 116, 176, 74, 164, 217, 40, 57,
-		179, 15, 19, 21, 240, 100, 70, 127, 111, 170, 129, 137, 42, 53,
-	],
-	vec![
-		53, 72, 211, 104, 184, 68, 142, 208, 115, 22, 156, 97, 28, 216, 228, 102, 4, 218,
-		116, 226, 166, 131, 67, 7, 40, 55, 157, 167, 157, 127, 143, 13,
-	],
+		vec![
+				98, 161, 50, 32, 254, 87, 16, 25, 167, 79, 192, 116, 176, 74, 164, 217, 40, 57,
+				179, 15, 19, 21, 240, 100, 70, 127, 111, 170, 129, 137, 42, 53,
+		],
+		vec![
+				53, 72, 211, 104, 184, 68, 142, 208, 115, 22, 156, 97, 28, 216, 228, 102, 4, 218,
+				116, 226, 166, 131, 67, 7, 40, 55, 157, 167, 157, 127, 143, 13,
+		],
 ];
 
 // Load the key pairs from our serialized secret keys,
 let signing_keypairs: Vec<Keypair> = signing_secret_key_bytes
-	.iter()
-	.map(|bytes| {
-		let sk = SecretKey::from_bytes(&bytes).unwrap();
-		let pk = PublicKey::from_secret_key(&sk);
-		Keypair { sk, pk }
-	})
-	.collect();
+		.iter()
+		.map(|bytes| {
+				let sk = SecretKey::from_bytes(&bytes).unwrap();
+				let pk = PublicKey::from_secret_key(&sk);
+				Keypair { sk, pk }
+		})
+		.collect();
 
 let message = "cats".as_bytes();
 
 // Create an aggregate signature over some message, also generating an
 // aggregate public key at the same time.
 let mut agg_sig = AggregateSignature::new();
-let mut agg_pub_key = AggregatePublicKey::new();
+let mut public_keys = vec![];
 for keypair in &signing_keypairs {
-	let sig = Signature::new(&message, &keypair.sk);
-	agg_sig.add(&sig);
-	agg_pub_key.add(&keypair.pk);
+		let sig = Signature::new(&message, &keypair.sk);
+		agg_sig.add(&sig);
+		public_keys.push(keypair.pk.clone());
 }
+let agg_pub_key = AggregatePublicKey::into_aggregate(&public_keys).unwrap();
 
 // Serialize and de-serialize the aggregates, just 'cause we can.
 let agg_sig_bytes = agg_sig.as_bytes();
-let agg_pub_bytes = agg_pub_key.as_bytes();
 let agg_sig = AggregateSignature::from_bytes(&agg_sig_bytes).unwrap();
-let agg_pub_key = AggregatePublicKey::from_bytes(&agg_pub_bytes).unwrap();
 
 // Verify the AggregateSignature against the AggregatePublicKey
 assert!(agg_sig.fast_aggregate_verify_pre_aggregated(&message, &agg_pub_key));
+}
 ```
 
 ### How to Run Benchmarks

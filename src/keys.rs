@@ -131,15 +131,22 @@ impl PublicKey {
         }
     }
 
-    /// Instantiate a PublicKey from some GroupG1 point.
-    pub fn new_from_raw(pt: &GroupG1) -> Self {
-        PublicKey { point: pt.clone() }
+    /// Instantiate a PublicKey from compressed bytes.
+    pub fn from_bytes(bytes: &[u8]) -> Result<PublicKey, AmclError> {
+        let public_key = Self::from_bytes_unchecked(bytes)?;
+        if !public_key.key_validate() {
+            return Err(AmclError::InvalidPoint);
+        }
+
+        Ok(public_key)
     }
 
     /// Instantiate a PublicKey from compressed bytes.
-    pub fn from_bytes(bytes: &[u8]) -> Result<PublicKey, AmclError> {
+    pub fn from_bytes_unchecked(bytes: &[u8]) -> Result<PublicKey, AmclError> {
         let point = decompress_g1(&bytes)?;
-        Ok(Self { point })
+        let public_key = Self { point };
+
+        Ok(public_key)
     }
 
     /// Export the PublicKey to compressed bytes.
@@ -153,6 +160,8 @@ impl PublicKey {
     }
 
     /// InstantiatePublicKey from uncompress (x, y) bytes
+    ///
+    /// Does not validate the key, MUST only be used on verified keys.
     pub fn from_uncompressed_bytes(bytes: &[u8]) -> Result<PublicKey, AmclError> {
         if bytes.len() != G1_BYTES * 2 {
             return Err(AmclError::InvalidG1Size);
@@ -236,7 +245,9 @@ mod tests {
 
     #[test]
     fn test_public_key_uncompressed_serialization_infinity() {
-        let mut pk = PublicKey::new_from_raw(&GroupG1::new());
+        let mut pk_inf_bytes = vec![0u8; 48];
+        pk_inf_bytes[0] = 192;
+        let mut pk = PublicKey::from_bytes_unchecked(&pk_inf_bytes).unwrap();
         let decoded_pk = pk.as_uncompressed_bytes().to_vec();
         let recoded_pk = PublicKey::from_uncompressed_bytes(&decoded_pk).unwrap();
         assert_eq!(recoded_pk, pk);
@@ -341,6 +352,31 @@ mod tests {
         let message = "cats".as_bytes();
         let signature = Signature::new(&message, &sk);
         assert!(signature.verify(&message, &pk));
+    }
+
+    #[test]
+    fn test_key_validate() {
+        // Attempt to deserialise the point (0, 2) which is not in the group.
+        let mut pk_bytes = vec![0; 48];
+        pk_bytes[0] = 128;
+
+        assert_eq!(
+            PublicKey::from_bytes(&pk_bytes),
+            Err(AmclError::InvalidPoint)
+        );
+        assert!(PublicKey::from_bytes_unchecked(&pk_bytes).is_ok());
+    }
+
+    #[test]
+    fn test_public_key_from_bytes_infinity() {
+        // Infinity
+        let mut pk_bytes = vec![0; 48];
+        pk_bytes[0] = 196;
+
+        assert_eq!(
+            PublicKey::from_bytes(&pk_bytes),
+            Err(AmclError::InvalidPoint)
+        );
     }
 
     #[test]

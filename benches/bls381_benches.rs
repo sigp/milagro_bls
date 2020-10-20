@@ -120,8 +120,7 @@ fn aggregation(c: &mut Criterion) {
     let msg = "Some msg";
     let sig = Signature::new(&msg.as_bytes(), &sk);
 
-    let mut aggregate_publickey = AggregatePublicKey::new();
-    aggregate_publickey.add(&pk);
+    let mut aggregate_publickey = AggregatePublicKey::from_public_key(&pk);
 
     let mut aggregate_signature = AggregateSignature::new();
     aggregate_signature.add(&sig);
@@ -168,7 +167,7 @@ fn aggregate_verfication(c: &mut Criterion) {
         Benchmark::new("Verifying aggregate of 128 signatures", move |b| {
             b.iter(|| {
                 let pubkeys_as_ref: Vec<&PublicKey> = pubkeys.iter().collect();
-                let agg_pub = AggregatePublicKey::aggregate(pubkeys_as_ref.as_slice());
+                let agg_pub = AggregatePublicKey::aggregate(pubkeys_as_ref.as_slice()).unwrap();
                 let verified = agg_sig.fast_aggregate_verify_pre_aggregated(&msg[..], &agg_pub);
                 assert!(verified);
             })
@@ -189,15 +188,16 @@ fn aggregate_verfication_multiple_signatures(c: &mut Criterion) {
 
     for i in 0..n {
         let mut aggregate_signature = AggregateSignature::new();
-        let mut aggregate_public_key = AggregatePublicKey::new();
+        let mut public_keys = vec![];
         msgs[i] = vec![i as u8; 32];
         for j in 0..m {
             let keypair = &keypairs[i * m + j];
             let signature = Signature::new(&msgs[i], &keypair.sk);
 
-            aggregate_public_key.add(&keypair.pk);
+            public_keys.push(keypair.pk.clone());
             aggregate_signature.add(&signature);
         }
+        let aggregate_public_key = AggregatePublicKey::into_aggregate(&public_keys).unwrap();
         aggregate_public_keys.push(aggregate_public_key);
         aggregate_signatures.push(aggregate_signature);
     }
@@ -216,7 +216,7 @@ fn aggregate_verfication_multiple_signatures(c: &mut Criterion) {
                     let mut rng = rand::thread_rng();
                     // Create reference iterators
                     let ref_vec = vec![1u8; 32];
-                    let ref_apk = AggregatePublicKey::new();
+                    let ref_apk = aggregate_public_keys[0].clone();
                     let ref_as = AggregateSignature::new();
                     let mut msgs_refs: Vec<&[u8]> = vec![&ref_vec; n];
                     let mut aggregate_public_keys_refs: Vec<&AggregatePublicKey> =
