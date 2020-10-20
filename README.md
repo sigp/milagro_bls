@@ -16,9 +16,9 @@ rouge-key attack.
 There has been no public audit or scrutiny placed upon this crate. If you're a
 cryptographer I would love to have your input.
 
-This library uses a Proof of Possession variant as protection against rogue key attacks.
-A public keys proof of possession verified by signing a hash of the public key
-before being used in any aggregate signatures.
+This library uses a Proof of Possession (PoP) variant as protection against rogue key attacks.
+A public key can be PoP verified by signing a hash of the public key. This must be done
+before a `PublicKey` may be used in any aggregate signatures.
 
 Subgroup checks are performed for signatures during verification and public keys
 during deserialisation.
