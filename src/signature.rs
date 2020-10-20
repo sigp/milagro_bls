@@ -29,10 +29,6 @@ impl Signature {
         if !subgroup_check_g2(&self.point) {
             return false;
         }
-        // KeyValidate
-        if !pk.key_validate() {
-            return false;
-        }
 
         let mut msg_hash_point = hash_to_curve_g2(msg);
         msg_hash_point.affine();
