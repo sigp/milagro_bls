@@ -200,6 +200,11 @@ impl AggregateSignature {
         }
         let aggregate_public_key = aggregate_public_key.unwrap();
 
+        // Ensure AggregatePublicKey is not infinity
+        if aggregate_public_key.point.is_infinity() {
+            return false;
+        }
+
         // Hash message to curve
         let mut msg_hash = hash_to_curve_g2(msg);
 
@@ -230,6 +235,11 @@ impl AggregateSignature {
     ) -> bool {
         // Subgroup check for signature
         if !subgroup_check_g2(&self.point) {
+            return false;
+        }
+
+        // Ensure AggregatePublicKey is not infinity
+        if aggregate_public_key.point.is_infinity() {
             return false;
         }
 
@@ -384,6 +394,25 @@ mod tests {
 
         // Empty PublicKey array should fail
         assert!(!agg_sig.fast_aggregate_verify(&[0; 32], &[]));
+    }
+
+    #[test]
+    fn test_split_zero_fast_aggregate_verify() {
+        let agg_sig = AggregateSignature::new();
+
+        let mut sk_bytes = [0; 32];
+        sk_bytes[31] = 1;
+        let sk = SecretKey::from_bytes(&sk_bytes).unwrap(); // 1
+        let pk = PublicKey::from_secret_key(&sk);
+
+        let sk_bytes = hex::decode("73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000000").unwrap();
+        let neg_sk = SecretKey::from_bytes(&sk_bytes).unwrap(); // -1
+        let neg_pk = PublicKey::from_secret_key(&neg_sk);
+
+        let public_keys = [&pk, &neg_pk];
+
+        // Aggregates to zero should fail
+        assert!(!agg_sig.fast_aggregate_verify(&[0; 32], &public_keys));
     }
 
     fn map_secret_bytes_to_keypairs(secret_key_bytes: Vec<Vec<u8>>) -> Vec<Keypair> {
