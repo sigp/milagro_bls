@@ -36,7 +36,7 @@ pub fn hash_to_curve_g2(msg: &[u8]) -> GroupG2 {
 
 // Evaluation of e(A, B) * e(C, D) == 1
 pub fn ate2_evaluation(a: &GroupG2, b: &GroupG1, c: &GroupG2, d: &GroupG1) -> bool {
-    let mut pairing = ate2(&a, &b, &c, &d);
+    let mut pairing = ate2(a, b, c, d);
     pairing = fexp(&pairing);
     FP12::new_int(1).equals(&pairing)
 }
