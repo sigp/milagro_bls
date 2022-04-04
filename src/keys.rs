@@ -32,14 +32,18 @@ impl SecretKey {
     /// Generate a new SecretKey using an Rng to seed the `amcl::rand::RAND` PRNG.
     pub fn random<R: Rng + ?Sized>(rng: &mut R) -> Self {
         let ikm: [u8; 32] = rng.gen();
-        Self::key_generate(&ikm, &[])
+        Self::key_generate(&ikm, &[]).unwrap() // will only error if ikm < 32 bytes
     }
 
     /// KeyGenerate
     ///
     /// Generate a new SecretKey based off Initial Keying Material (IKM) and key info.
     /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-2.3
-    pub fn key_generate(ikm: &[u8], key_info: &[u8]) -> Self {
+    pub fn key_generate(ikm: &[u8], key_info: &[u8]) -> Result<Self, AmclError> {
+        if ikm.len() < 32 {
+            return Err(AmclError::InvalidSecretKeySize);
+        }
+
         let mut sk = Big::new();
         let mut salt = KEY_SALT.to_vec();
 
@@ -66,7 +70,7 @@ impl SecretKey {
             sk = Big::from_bytes(&okm);
             sk.rmod(&r);
         }
-        Self { x: sk }
+        Ok(Self { x: sk })
     }
 
     /// Instantiate a SecretKey from existing bytes.
