@@ -31,9 +31,7 @@ impl AggregatePublicKey {
             return Err(AmclError::AggregateEmptyPoints);
         }
 
-        let mut agg_key = Self {
-            point: GroupG1::new(),
-        };
+        let mut agg_key = Self { point: GroupG1::new() };
         for key in keys {
             agg_key.point.add(&key.point)
         }
@@ -54,16 +52,14 @@ impl AggregatePublicKey {
         for key in keys {
             point.add(&key.point)
         }
-        Ok(Self { point: point })
+        Ok(Self { point })
     }
 
     /// Instantiate a new aggregate public key from a single PublicKey.
     ///
     /// Pre-requsites: Public key must be PoP verified before calling this function.
     pub fn from_public_key(key: &PublicKey) -> Self {
-        AggregatePublicKey {
-            point: key.point.clone(),
-        }
+        AggregatePublicKey { point: key.point.clone() }
     }
 
     /// Add a PublicKey to the AggregatePublicKey.
@@ -95,9 +91,7 @@ impl AggregateSignature {
     ///
     /// The underlying point will be set to infinity.
     pub fn new() -> Self {
-        Self {
-            point: GroupG2::new(),
-        }
+        Self { point: GroupG2::new() }
     }
 
     /// Instantiate a new AggregateSignature from a vector of Signatures.
@@ -113,9 +107,7 @@ impl AggregateSignature {
 
     /// Instantiate a new AggregateSignature from a single Signature.
     pub fn from_signature(signature: &Signature) -> Self {
-        AggregateSignature {
-            point: signature.point.clone(),
-        }
+        AggregateSignature { point: signature.point.clone() }
     }
 
     /// Add a Signature to the AggregateSignature.
@@ -137,7 +129,7 @@ impl AggregateSignature {
     /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.3
     pub fn aggregate_verify(&self, msgs: &[&[u8]], public_keys: &[&PublicKey]) -> bool {
         // Require same number of messages as PublicKeys and >=1 PublicKeys.
-        if msgs.len() != public_keys.len() || public_keys.len() == 0 {
+        if msgs.len() != public_keys.len() || public_keys.is_empty() {
             return false;
         }
 
@@ -184,7 +176,7 @@ impl AggregateSignature {
     /// https://tools.ietf.org/html/draft-irtf-cfrg-bls-signature-02#section-3.3.4
     pub fn fast_aggregate_verify(&self, msg: &[u8], public_keys: &[&PublicKey]) -> bool {
         // Require at least one PublicKey
-        if public_keys.len() == 0 {
+        if public_keys.is_empty() {
             return false;
         }
 
@@ -210,7 +202,7 @@ impl AggregateSignature {
 
         // Points must be affine for pairing
         let mut sig_point = self.point.clone();
-        let mut key_point = aggregate_public_key.point.clone();
+        let mut key_point = aggregate_public_key.point;
         sig_point.affine();
         key_point.affine();
         msg_hash.affine();
@@ -288,7 +280,7 @@ impl AggregateSignature {
             let mut rand = 0;
             while rand == 0 {
                 // Require: rand > 0
-                let mut rand_bytes = [0 as u8; 8]; // bytes
+                let mut rand_bytes = [0u8; 8]; // bytes
                 rng.fill(&mut rand_bytes);
                 rand = i64::from_be_bytes(rand_bytes).abs();
             }
@@ -325,7 +317,7 @@ impl AggregateSignature {
 
     /// Instatiate an AggregateSignature from some bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<AggregateSignature, AmclError> {
-        let point = decompress_g2(&bytes)?;
+        let point = decompress_g2(bytes)?;
         Ok(Self { point })
     }
 
@@ -405,7 +397,9 @@ mod tests {
         let sk = SecretKey::from_bytes(&sk_bytes).unwrap(); // 1
         let pk = PublicKey::from_secret_key(&sk);
 
-        let sk_bytes = hex::decode("73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000000").unwrap();
+        let sk_bytes =
+            hex::decode("73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000000")
+                .unwrap();
         let neg_sk = SecretKey::from_bytes(&sk_bytes).unwrap(); // -1
         let neg_pk = PublicKey::from_secret_key(&neg_sk);
 
@@ -439,11 +433,7 @@ mod tests {
             subset
         };
 
-        let messages = vec![
-            "Small msg".as_bytes(),
-            "cats lol".as_bytes(),
-            &[42_u8; 133700],
-        ];
+        let messages = vec!["Small msg".as_bytes(), "cats lol".as_bytes(), &[42_u8; 133700]];
 
         for message in messages {
             let mut agg_signature = AggregateSignature::new();
@@ -943,9 +933,7 @@ mod tests {
         let multiplier = Big::new_int(5);
         let mut point = GroupG1::generator();
         point = point.mul(&multiplier);
-        let public_key = PublicKey {
-            point: point.clone(),
-        };
+        let public_key = PublicKey { point: point.clone() };
         let aggregate_public_key = AggregatePublicKey::from_public_key(&public_key);
 
         assert_eq!(public_key.point, aggregate_public_key.point);

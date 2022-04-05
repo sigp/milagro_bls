@@ -36,17 +36,12 @@ impl Signature {
         // Faster ate2 evaualtion checks e(S, -G1) * e(H, PK) == 1
         let mut generator_g1_negative = amcl_utils::GroupG1::generator();
         generator_g1_negative.neg();
-        ate2_evaluation(
-            &self.point,
-            &generator_g1_negative,
-            &msg_hash_point,
-            &pk.point,
-        )
+        ate2_evaluation(&self.point, &generator_g1_negative, &msg_hash_point, &pk.point)
     }
 
     /// Instantiate a Signature from compressed bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<Signature, AmclError> {
-        let point = decompress_g2(&bytes)?;
+        let point = decompress_g2(bytes)?;
         Ok(Self { point })
     }
 
