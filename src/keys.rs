@@ -157,7 +157,7 @@ impl PublicKey {
     }
 
     /// Export the public key to uncompress (x, y) bytes
-    pub fn as_uncompressed_bytes(&mut self) -> [u8; G1_BYTES * 2] {
+    pub fn as_uncompressed_bytes(&self) -> [u8; G1_BYTES * 2] {
         serialize_uncompressed_g1(&self.point)
     }
 
