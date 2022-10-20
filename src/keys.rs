@@ -2,6 +2,9 @@ extern crate amcl;
 extern crate rand;
 extern crate zeroize;
 
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
 use self::zeroize::Zeroize;
 use super::amcl_utils::{
     self, compress_g1, decompress_g1, g1mul, subgroup_check_g1, AmclError, Big, GroupG1,
