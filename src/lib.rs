@@ -14,7 +14,7 @@ mod amcl_utils;
 mod keys;
 mod signature;
 
-use self::amcl::bls381 as BLSCurve;
+pub use self::amcl::bls381 as BLSCurve;
 
 pub use aggregates::{AggregatePublicKey, AggregateSignature};
 pub use amcl_utils::{AmclError, G1_BYTES, G2_BYTES, SECRET_KEY_BYTES};
